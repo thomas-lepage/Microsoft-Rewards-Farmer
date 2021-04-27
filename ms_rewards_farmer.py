@@ -25,6 +25,8 @@ def browserSetup(headless_mode: bool = False, user_agent: str = PC_USER_AGENT) -
     # Create Chrome browser
     from selenium.webdriver.chrome.options import Options
     options = Options()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
     options.add_argument("user-agent=" + user_agent)
     options.add_argument('lang=' + LANG.split("-")[0])
     if headless_mode :
