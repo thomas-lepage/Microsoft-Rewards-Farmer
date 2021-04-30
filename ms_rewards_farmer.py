@@ -720,7 +720,7 @@ def prYellow(prt):
     print("\033[93m{}\033[00m".format(prt))
 
 prRed("""
-███╗   ███╗███████╗    ███████╗ █████╗ ██████╗ ███╗   ███╗███████╗██████╗ 
+███╗   ███╗███████╗    ███████╗ █████╗ ██████╗ ███╗   ███╗███████╗██████╗
 ████╗ ████║██╔════╝    ██╔════╝██╔══██╗██╔══██╗████╗ ████║██╔════╝██╔══██╗
 ██╔████╔██║███████╗    █████╗  ███████║██████╔╝██╔████╔██║█████╗  ██████╔╝
 ██║╚██╔╝██║╚════██║    ██╔══╝  ██╔══██║██╔══██╗██║╚██╔╝██║██╔══╝  ██╔══██╗
@@ -783,6 +783,20 @@ for account in ACCOUNTS:
         bingSearches(browser, remainingSearchesM, True)
         prGreen('[BING] Finished Mobile Bing searches !')
         browser.quit()
-    
+
     prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' points today !')
     prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !\n')
+
+
+URL = "http://supervisor/core/api/states/sensor.ms_rewards"
+SUPERVISOR_TOKEN = os.environ["SUPERVISOR_TOKEN"]
+HEADERS = {
+    "Authorization": "Bearer " + SUPERVISOR_TOKEN,
+    "Content-Type": "application/json"
+}
+
+DATA = {
+    "state": POINTS_COUNTER
+}
+
+r = requests.post(URL, data=json.dumps(DATA), headers=HEADERS)
