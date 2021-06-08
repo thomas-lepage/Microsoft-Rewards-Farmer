@@ -19,6 +19,7 @@ PC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (K
 MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 10; Pixel 3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0. 3945.79 Mobile Safari/537.36'
 
 POINTS_COUNTER = 0
+STREAK_DATA = 0
 
 # Define browser setup function
 def browserSetup(headless_mode: bool = False, user_agent: str = PC_USER_AGENT) -> WebDriver:
@@ -539,6 +540,7 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
                 time.sleep(2)
 
 def completePunchCards(browser: WebDriver):
+    global STREAK_DATA
     punchCards = getDashboardData(browser)['punchCards']
     for punchCard in punchCards:
         try:
@@ -553,6 +555,7 @@ def completePunchCards(browser: WebDriver):
     time.sleep(2)
     browser.get('https://account.microsoft.com/rewards/')
     time.sleep(2)
+    STREAK_DATA = browser.find_element_by_id('streak').get_attribute('aria-label')
 
 def completeMorePromotionSearch(browser: WebDriver, cardNumber: int):
     browser.find_element_by_xpath('//*[@id="more-activities"]/div/mee-card[' + str(cardNumber) + ']/div/card-content/mee-rewards-more-activities-card-item/div/div[3]/a').click()
@@ -785,7 +788,8 @@ for account in ACCOUNTS:
         browser.quit()
 
     prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' points today !')
-    prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !\n')
+    prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
+    prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2] + '\n')
 
 
 URL = "http://supervisor/core/api/states/sensor.ms_rewards"
