@@ -44,9 +44,9 @@ def login(browser: WebDriver, email: str, pwd: str, isMobile: bool = False):
     waitUntilVisible(browser, By.ID, 'loginHeader', 10)
     # Enter email
     print('[LOGIN]', 'Writing email...')
-    browser.find_element_by_name("loginfmt").send_keys(email)
+    waitForElement(browser, By.NAME, "loginfmt").send_keys(email)
     # Click next
-    browser.find_element_by_id('idSIButton9').click()
+    waitForElement(browser, By.ID, 'idSIButton9').click()
     # Wait 2 seconds
     time.sleep(2)
     # Wait complete loading
@@ -56,7 +56,7 @@ def login(browser: WebDriver, email: str, pwd: str, isMobile: bool = False):
     browser.execute_script("document.getElementById('i0118').value = '" + pwd + "';")
     print('[LOGIN]', 'Writing password...')
     # Click next
-    browser.find_element_by_id('idSIButton9').click()
+    waitForElement(browser, By.ID, 'idSIButton9').click()
     # Wait 5 seconds
     time.sleep(5)
     # Click Security Check
@@ -90,31 +90,31 @@ def checkBingLogin(browser: WebDriver, isMobile: bool = False):
     time.sleep(8)
     #Accept Cookies
     try:
-        browser.find_element_by_id('bnp_btn_accept').click()
+        waitForElement(browser, By.ID,'bnp_btn_accept').click()
     except:
         pass
     if isMobile:
         try:
             time.sleep(1)
-            browser.find_element_by_id('mHamburger').click()
+            waitForElement(browser, By.ID, 'mHamburger').click()
         except:
             try:
-                browser.find_element_by_id('bnp_btn_accept').click()
+                waitForElement(browser, By.ID, 'bnp_btn_accept').click()
             except:
                 pass
             time.sleep(1)
             try:
-                browser.find_element_by_id('mHamburger').click()
+                waitForElement(browser, By.ID, 'mHamburger').click()
             except:
                 pass
         try:
             time.sleep(1)
-            browser.find_element_by_id('HBSignIn').click()
+            waitForElement(browser, By.ID, 'HBSignIn').click()
         except:
             pass
         try:
             time.sleep(2)
-            browser.find_element_by_id('iShowSkip').click()
+            waitForElement(browser, By.ID, 'iShowSkip').click()
             time.sleep(3)
         except:
             if str(browser.current_url).split('?')[0] == "https://account.live.com/proofs/Add":
@@ -129,21 +129,24 @@ def checkBingLogin(browser: WebDriver, isMobile: bool = False):
     #Update Counter
     try:
         if not isMobile:
-            POINTS_COUNTER = int(browser.find_element_by_id('id_rc').get_attribute('innerHTML'))
+            POINTS_COUNTER = int(waitForElement(browser, By.ID, 'id_rc').get_attribute('innerHTML'))
         else:
             try:
-                browser.find_element_by_id('mHamburger').click()
+                waitForElement(browser, By.ID, 'mHamburger').click()
             except:
                 try:
-                    browser.find_element_by_id('bnp_btn_accept').click()
+                    browser.waitForElement(browser, By.ID, 'bnp_btn_accept').click()
                 except:
                     pass
                 time.sleep(1)
-                browser.find_element_by_id('mHamburger').click()
+                waitForElement(browser, By.ID, 'mHamburger').click()
             time.sleep(1)
-            POINTS_COUNTER = int(browser.find_element_by_id('fly_id_rc').get_attribute('innerHTML'))
+            POINTS_COUNTER = int(waitForElement(browser, By.ID, 'fly_id_rc').get_attribute('innerHTML'))
     except:
         checkBingLogin(browser, isMobile)
+
+def waitForElement(browser: WebDriver, by_: By, selector: str, time_to_wait: int = 10):
+    return WebDriverWait(browser, time_to_wait).until(ec.presence_of_element_located((by_, selector)))
 
 def waitUntilVisible(browser: WebDriver, by_: By, selector: str, time_to_wait: int = 10):
     WebDriverWait(browser, time_to_wait).until(ec.visibility_of_element_located((by_, selector)))
@@ -277,14 +280,14 @@ def bingSearches(browser: WebDriver, numberOfSearches: int, isMobile: bool = Fal
 def bingSearch(browser: WebDriver, word: str, isMobile: bool):
     browser.get('https://bing.com')
     time.sleep(2)
-    searchbar = browser.find_element_by_id('sb_form_q')
+    searchbar = waitForElement(browser, By.ID, 'sb_form_q')
     searchbar.send_keys(word)
     searchbar.submit()
     time.sleep(random.randint(10, 15))
     points = 0
     try:
         if not isMobile:
-            points = int(browser.find_element_by_id('id_rc').get_attribute('innerHTML'))
+            points = int(waitForElement(browser, By.ID, 'id_rc').get_attribute('innerHTML'))
         else:
             try :
                 browser.find_element_by_id('mHamburger').click()
@@ -292,11 +295,11 @@ def bingSearch(browser: WebDriver, word: str, isMobile: bool):
                 try :
                     browser.switch_to.alert.accept()
                     time.sleep(1)
-                    browser.find_element_by_id('mHamburger').click()
+                    waitForElement(browser, By.ID, 'mHamburger').click()
                 except NoAlertPresentException :
                     pass
             time.sleep(1)
-            points = int(browser.find_element_by_id('fly_id_rc').get_attribute('innerHTML'))
+            points = int(waitForElement(browser, By.ID, 'fly_id_rc').get_attribute('innerHTML'))
     except:
         pass
     return points
@@ -384,7 +387,7 @@ def completeDailySetQuiz(browser: WebDriver, cardNumber: int):
 
 def completeDailySetVariableActivity(browser: WebDriver, cardNumber: int):
     time.sleep(2)
-    browser.find_element_by_xpath('//*[@id="daily-sets"]/mee-card-group[1]/div/mee-card[' + str(cardNumber) + ']/div/card-content/mee-rewards-daily-set-item-content/div/div[3]/a').click()
+    waitForElement(browser, By.XPATH, '//*[@id="daily-sets"]/mee-card-group[1]/div/mee-card[' + str(cardNumber) + ']/div/card-content/mee-rewards-daily-set-item-content/div/div[3]/a').click()
     time.sleep(1)
     browser.switch_to.window(window_name = browser.window_handles[1])
     time.sleep(8)
@@ -427,7 +430,7 @@ def completeDailySetVariableActivity(browser: WebDriver, cardNumber: int):
 
 def completeDailySetThisOrThat(browser: WebDriver, cardNumber: int):
     time.sleep(2)
-    browser.find_element_by_xpath('//*[@id="daily-sets"]/mee-card-group[1]/div/mee-card[' + str(cardNumber) + ']/div/card-content/mee-rewards-daily-set-item-content/div/div[3]/a').click()
+    waitForElement(browser, By.XPATH, '//*[@id="daily-sets"]/mee-card-group[1]/div/mee-card[' + str(cardNumber) + ']/div/card-content/mee-rewards-daily-set-item-content/div/div[3]/a').click()
     time.sleep(1)
     browser.switch_to.window(window_name=browser.window_handles[1])
     time.sleep(8)
@@ -464,7 +467,8 @@ def completeDailySetThisOrThat(browser: WebDriver, cardNumber: int):
     time.sleep(2)
 
 def getDashboardData(browser: WebDriver) -> dict:
-    dashboard = findBetween(browser.find_element_by_xpath('/html/body').get_attribute('innerHTML'), "var dashboard = ", ";\n        appDataModule.constant(\"prefetchedDashboard\", dashboard);")
+    dashboard = findBetween(waitForElement(browser, By.XPATH, '/html/body').get_attribute('innerHTML'), "var dashboard = ", ";\n        appDataModule.constant(\"prefetchedDashboard\", dashboard);")
+    # dashboard = findBetween(browser.find_element_by_xpath('/html/body').get_attribute('innerHTML'), "var dashboard = ", ";\n        appDataModule.constant(\"prefetchedDashboard\", dashboard);")
     dashboard = json.loads(dashboard)
     return dashboard
 
