@@ -717,6 +717,26 @@ def getRemainingSearches(browser: WebDriver):
         remainingMobile = int((targetMobile - progressMobile) / searchPoints)
     return remainingDesktop, remainingMobile
 
+def sendToHomeAssistant(startingPoints, points, streakData):
+    bonusData = [int(s) for s in streakData.split() if s.isdigit()]
+    URL = "http://supervisor/core/api/states/sensor.msrewards"
+    SUPERVISOR_TOKEN = os.environ["SUPERVISOR_TOKEN"]
+    HEADERS = {
+       "Authorization": "Bearer " + SUPERVISOR_TOKEN,
+       "Content-Type": "application/json"
+   }
+    DATA = {
+        "state": points,
+        "attributes": {
+            "todays_harvest": points - startingPoints,
+            "streak": streakData.split(',')[0],
+            "days_until_bonus": bonusData[0] if int(bonusData[0]) < 20 else '0',
+            "bonus": bonusData[0] if int(bonusData[0]) > 20 else '0'
+        }
+    }
+
+    requests.post(URL, data=json.dumps(DATA), headers=HEADERS)
+
 def prRed(prt):
     print("\033[91m{}\033[00m".format(prt))
 def prGreen(prt):
@@ -795,16 +815,5 @@ for account in ACCOUNTS:
     prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
     prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2] + '\n')
 
-
-URL = "http://supervisor/core/api/states/sensor.ms_rewards"
-SUPERVISOR_TOKEN = os.environ["SUPERVISOR_TOKEN"]
-HEADERS = {
-    "Authorization": "Bearer " + SUPERVISOR_TOKEN,
-    "Content-Type": "application/json"
-}
-
-DATA = {
-    "state": POINTS_COUNTER
-}
-
-r = requests.post(URL, data=json.dumps(DATA), headers=HEADERS)
+    if "SUPERVISOR_TOKEN" in os.environ:
+        sendToHomeAssistant(startingPoints, POINTS_COUNTER, STREAK_DATA)
