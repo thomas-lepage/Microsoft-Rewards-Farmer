@@ -3,6 +3,7 @@ import json
 from datetime import date, timedelta, datetime
 import requests
 import random
+import schedule
 import urllib.parse
 import ipapi
 import os
@@ -717,6 +718,13 @@ def getRemainingSearches(browser: WebDriver):
         remainingMobile = int((targetMobile - progressMobile) / searchPoints)
     return remainingDesktop, remainingMobile
 
+def schedule_next_run(): # set next run for random hour and minute each day
+   time_str = '{:02d}:{:02d}'.format(random.randint(7, 10), random.randint(0, 59))
+   schedule.clear()
+   prPurple("Next run scheduled for {}\n".format(time_str))
+   time.sleep(14400) #sleep so job will not happen twice in a day
+   schedule.every().day.at(time_str).do(run)
+
 def sendToHomeAssistant(startingPoints, points, streakData):
     bonusData = [int(s) for s in streakData.split() if s.isdigit()]
     URL = "http://supervisor/core/api/states/sensor.msrewards"
@@ -746,14 +754,64 @@ def prPurple(prt):
 def prYellow(prt):
     print("\033[93m{}\033[00m".format(prt))
 
-prRed("""
-███╗   ███╗███████╗    ███████╗ █████╗ ██████╗ ███╗   ███╗███████╗██████╗
-████╗ ████║██╔════╝    ██╔════╝██╔══██╗██╔══██╗████╗ ████║██╔════╝██╔══██╗
-██╔████╔██║███████╗    █████╗  ███████║██████╔╝██╔████╔██║█████╗  ██████╔╝
-██║╚██╔╝██║╚════██║    ██╔══╝  ██╔══██║██╔══██╗██║╚██╔╝██║██╔══╝  ██╔══██╗
-██║ ╚═╝ ██║███████║    ██║     ██║  ██║██║  ██║██║ ╚═╝ ██║███████╗██║  ██║
-╚═╝     ╚═╝╚══════╝    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝""")
-prPurple("        by Charles Bel (@charlesbel)               version 1.1\n")
+
+def run():
+    prRed("""
+    ███╗   ███╗███████╗    ███████╗ █████╗ ██████╗ ███╗   ███╗███████╗██████╗
+    ████╗ ████║██╔════╝    ██╔════╝██╔══██╗██╔══██╗████╗ ████║██╔════╝██╔══██╗
+    ██╔████╔██║███████╗    █████╗  ███████║██████╔╝██╔████╔██║█████╗  ██████╔╝
+    ██║╚██╔╝██║╚════██║    ██╔══╝  ██╔══██║██╔══██╗██║╚██╔╝██║██╔══╝  ██╔══██╗
+    ██║ ╚═╝ ██║███████║    ██║     ██║  ██║██║  ██║██║ ╚═╝ ██║███████╗██║  ██║
+    ╚═╝     ╚═╝╚══════╝    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝""")
+    prPurple("        by Charles Bel (@charlesbel)               version 1.1\n")
+
+    random.shuffle(ACCOUNTS)
+    for account in ACCOUNTS:
+
+        prYellow('********************' + account['username'] + '********************')
+        browser = browserSetup(True, PC_USER_AGENT)
+        print('[LOGIN]', 'Logging-in...')
+        login(browser, account['username'], account['password'])
+        prGreen('[LOGIN] Logged-in successfully !')
+        startingPoints = POINTS_COUNTER
+        prGreen('[POINTS] You have ' + str(POINTS_COUNTER) + ' points on your account !')
+        browser.get('https://account.microsoft.com/rewards/')
+        print('[DAILY SET]', 'Trying to complete the Daily Set...')
+        completeDailySet(browser)
+        prGreen('[DAILY SET] Completed the Daily Set successfully !')
+        print('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
+        completePunchCards(browser)
+        prGreen('[PUNCH CARDS] Completed the Punch Cards successfully !')
+        print('[MORE PROMO]', 'Trying to complete More Promotions...')
+        completeMorePromotions(browser)
+        prGreen('[MORE PROMO] Completed More Promotions successfully !')
+        remainingSearches, remainingSearchesM = getRemainingSearches(browser)
+        if remainingSearches != 0:
+            print('[BING]', 'Starting Desktop and Edge Bing searches...')
+            bingSearches(browser, remainingSearches)
+            prGreen('[BING] Finished Desktop and Edge Bing searches !')
+        browser.quit()
+
+        if remainingSearchesM != 0:
+            browser = browserSetup(True, MOBILE_USER_AGENT)
+            print('[LOGIN]', 'Logging-in...')
+            login(browser, account['username'], account['password'], True)
+            print('[LOGIN]', 'Logged-in successfully !')
+            print('[BING]', 'Starting Mobile Bing searches...')
+            bingSearches(browser, remainingSearchesM, True)
+            prGreen('[BING] Finished Mobile Bing searches !')
+            browser.quit()
+
+        prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' points today !')
+        prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
+        prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2])
+
+        if "SUPERVISOR_TOKEN" in os.environ:
+            sendToHomeAssistant(startingPoints, POINTS_COUNTER, STREAK_DATA)
+        time.sleep(random.randint(1200, 5400))
+    schedule_next_run() #set a new hour and minute for the next day
+    return schedule.CancelJob #cancel current time schedule
+
 
 LANG, GEO, TZ = getCCodeLangAndOffset()
 
@@ -773,47 +831,9 @@ except FileNotFoundError:
     input()
     ACCOUNTS = json.load(open(account_path, "r"))
 
-random.shuffle(ACCOUNTS)
+schedule.every().day.at("00:00").do(run) #Start scheduling to be replaced by random ints after first run is over
+run() #Run for First time and set schedule for the next run
 
-for account in ACCOUNTS:
-
-    prYellow('********************' + account['username'] + '********************')
-    browser = browserSetup(True, PC_USER_AGENT)
-    print('[LOGIN]', 'Logging-in...')
-    login(browser, account['username'], account['password'])
-    prGreen('[LOGIN] Logged-in successfully !')
-    startingPoints = POINTS_COUNTER
-    prGreen('[POINTS] You have ' + str(POINTS_COUNTER) + ' points on your account !')
-    browser.get('https://account.microsoft.com/rewards/')
-    print('[DAILY SET]', 'Trying to complete the Daily Set...')
-    completeDailySet(browser)
-    prGreen('[DAILY SET] Completed the Daily Set successfully !')
-    print('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
-    completePunchCards(browser)
-    prGreen('[PUNCH CARDS] Completed the Punch Cards successfully !')
-    print('[MORE PROMO]', 'Trying to complete More Promotions...')
-    completeMorePromotions(browser)
-    prGreen('[MORE PROMO] Completed More Promotions successfully !')
-    remainingSearches, remainingSearchesM = getRemainingSearches(browser)
-    if remainingSearches != 0:
-        print('[BING]', 'Starting Desktop and Edge Bing searches...')
-        bingSearches(browser, remainingSearches)
-        prGreen('[BING] Finished Desktop and Edge Bing searches !')
-    browser.quit()
-
-    if remainingSearchesM != 0:
-        browser = browserSetup(True, MOBILE_USER_AGENT)
-        print('[LOGIN]', 'Logging-in...')
-        login(browser, account['username'], account['password'], True)
-        print('[LOGIN]', 'Logged-in successfully !')
-        print('[BING]', 'Starting Mobile Bing searches...')
-        bingSearches(browser, remainingSearchesM, True)
-        prGreen('[BING] Finished Mobile Bing searches !')
-        browser.quit()
-
-    prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' points today !')
-    prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
-    prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2] + '\n')
-
-    if "SUPERVISOR_TOKEN" in os.environ:
-        sendToHomeAssistant(startingPoints, POINTS_COUNTER, STREAK_DATA)
+while True:
+    schedule.run_pending()
+    time.sleep(60)
