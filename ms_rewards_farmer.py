@@ -726,9 +726,12 @@ def schedule_next_run(): # set next run for random hour and minute each day
    time.sleep(14400) #sleep so job will not happen twice in a day
    schedule.every().day.at(time_str).do(run)
 
-def sendToHomeAssistant(startingPoints, points, streakData):
+def sendToHomeAssistant(index, startingPoints, points, streakData):
     bonusData = [int(s) for s in streakData.split() if s.isdigit()]
-    URL = "http://supervisor/core/api/states/sensor.msrewards"
+    if len(ACCOUNTS) > 1:
+        URL = "http://supervisor/core/api/states/sensor.msrewards_" + str(index)
+    else:
+        URL = "http://supervisor/core/api/states/sensor.msrewards"
     SUPERVISOR_TOKEN = os.environ["SUPERVISOR_TOKEN"]
     HEADERS = {
        "Authorization": "Bearer " + SUPERVISOR_TOKEN,
@@ -767,7 +770,7 @@ def run():
     prPurple("        by Charles Bel (@charlesbel)               version 1.1\n")
 
     random.shuffle(ACCOUNTS)
-    for account in ACCOUNTS:
+    for index, account in enumerate(ACCOUNTS, start=1):
 
         prYellow('********************' + account['username'] + '********************')
         browser = browserSetup(True, PC_USER_AGENT)
@@ -808,8 +811,9 @@ def run():
         prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2])
 
         if "SUPERVISOR_TOKEN" in os.environ:
-            sendToHomeAssistant(startingPoints, POINTS_COUNTER, STREAK_DATA)
-        time.sleep(random.randint(1200, 5400))
+            sendToHomeAssistant(index, startingPoints, POINTS_COUNTER, STREAK_DATA)
+        if len(ACCOUNTS) > 1:
+            time.sleep(random.randint(1200, 5400))
     schedule_next_run() #set a new hour and minute for the next day
     return schedule.CancelJob #cancel current time schedule
 
