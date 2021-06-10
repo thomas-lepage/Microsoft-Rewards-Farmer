@@ -747,13 +747,13 @@ def sendToHomeAssistant(startingPoints, points, streakData):
     requests.post(URL, data=json.dumps(DATA), headers=HEADERS)
 
 def prRed(prt):
-    print("\033[91m{}\033[00m".format(prt))
+    print("\033[31m{}\033[00m".format(prt))
 def prGreen(prt):
-    print("\033[92m{}\033[00m".format(prt))
+    print("\033[32m{}\033[00m".format(prt))
 def prPurple(prt):
-    print("\033[95m{}\033[00m".format(prt))
+    print("\033[35m{}\033[00m".format(prt))
 def prYellow(prt):
-    print("\033[93m{}\033[00m".format(prt))
+    print("\033[33m{}\033[00m".format(prt))
 
 
 def run():
