@@ -722,7 +722,7 @@ def getRemainingSearches(browser: WebDriver):
 def schedule_next_run(): # set next run for random hour and minute each day
    time_str = '{:02d}:{:02d}'.format(random.randint(7, 10), random.randint(0, 59))
    schedule.clear()
-   prPurple("Next run scheduled for {}\n".format(time_str))
+   prPurple("Next run scheduled for tomorrow, {}, at {}".format((date.today() + timedelta(days=1)).strftime("%B %d"),time_str))
    time.sleep(14400) #sleep so job will not happen twice in a day
    schedule.every().day.at(time_str).do(run)
 
@@ -740,10 +740,11 @@ def sendToHomeAssistant(index, startingPoints, points, streakData):
     DATA = {
         "state": points,
         "attributes": {
+            "unit_of_measurement": "points",
             "todays_harvest": points - startingPoints,
-            "streak": streakData.split(',')[0],
-            "days_until_bonus": bonusData[0] if int(bonusData[0]) < 20 else '0',
-            "bonus": bonusData[0] if int(bonusData[0]) > 20 else '0'
+            "streak": int(streakData.split(',')[0]),
+            "days_until_bonus": int(bonusData[0]) if int(bonusData[0]) < 20 else 0,
+            "bonus": int(bonusData[0]) if int(bonusData[0]) > 20 else 0
         }
     }
 
