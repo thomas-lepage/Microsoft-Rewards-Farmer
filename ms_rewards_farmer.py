@@ -471,7 +471,12 @@ def completeDailySetThisOrThat(browser: WebDriver, cardNumber: int):
 def getDashboardData(browser: WebDriver) -> dict:
     dashboard = findBetween(waitForElement(browser, By.XPATH, '/html/body').get_attribute('innerHTML'), "var dashboard = ", ";\n        appDataModule.constant(\"prefetchedDashboard\", dashboard);")
     # dashboard = findBetween(browser.find_element_by_xpath('/html/body').get_attribute('innerHTML'), "var dashboard = ", ";\n        appDataModule.constant(\"prefetchedDashboard\", dashboard);")
-    dashboard = json.loads(dashboard)
+    try:
+        dashboard = json.loads(dashboard)
+    except:
+        browser.find_element_by_id("start-earning-rewards-link").click()
+        dashboard = findBetween(waitForElement(browser, By.XPATH, '/html/body').get_attribute('innerHTML'), "var dashboard = ", ";\n        appDataModule.constant(\"prefetchedDashboard\", dashboard);")
+        dashboard = json.loads(dashboard)
     return dashboard
 
 def completeDailySet(browser: WebDriver):
