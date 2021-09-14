@@ -475,6 +475,7 @@ def getDashboardData(browser: WebDriver) -> dict:
         dashboard = json.loads(dashboard)
     except:
         browser.find_element_by_id("start-earning-rewards-link").click()
+	time.sleep(5)
         dashboard = findBetween(waitForElement(browser, By.XPATH, '/html/body').get_attribute('innerHTML'), "var dashboard = ", ";\n        appDataModule.constant(\"prefetchedDashboard\", dashboard);")
         dashboard = json.loads(dashboard)
     return dashboard
