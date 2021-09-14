@@ -787,7 +787,7 @@ def run():
         startingPoints = POINTS_COUNTER
         prGreen('[POINTS] You have ' + str(POINTS_COUNTER) + ' points on your account !')
         browser.get('https://rewards.microsoft.com/Signin')
-	time.sleep(5)
+        time.sleep(5)
         print('[DAILY SET]', 'Trying to complete the Daily Set...')
         completeDailySet(browser)
         prGreen('[DAILY SET] Completed the Daily Set successfully !')
