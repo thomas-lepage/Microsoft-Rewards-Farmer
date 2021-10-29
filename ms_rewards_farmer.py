@@ -8,6 +8,8 @@ import urllib.parse
 import ipapi
 import os
 import sys
+from urllib.parse import urlencode, quote_plus
+from urllib.request import Request, urlopen
 
 from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
@@ -757,6 +759,26 @@ def sendToHomeAssistant(index, startingPoints, points, streakData):
 
     requests.post(URL, data=json.dumps(DATA), headers=HEADERS)
 
+def sendToIFTTT(index, startingPoints, points, streakData, account):
+    bonusData = [int(s) for s in streakData.split() if s.isdigit()]
+    urlPush = 'https://www.pushsafer.com/api'
+    post_fields = {
+        "t" : 'Rewards de ' + account['name'],
+        "m" : 'Today points : ' + str(points - startingPoints) + ' Total points : ' + str(points) + ' Streak : ' + streakData.split(',')[0] + (' day.' if streakData.split(',')[0] == '1' else ' days!'),
+        "s" : 11,
+        "v" : 3,
+        "i" : 33,
+        "c" : '#FF0000',
+        "d" : 'a',
+        "u" : '',
+        "ut" : '',
+        "k" : account['pushSaferToken'],
+        "pr" : '0',
+    }
+    request = Request(urlPush, urlencode(post_fields).encode())
+    json = urlopen(request).read().decode()
+    prGreen('[PUSH NOTIFICATIONS]' + json)
+
 def prRed(prt):
     print("\033[31m{}\033[00m".format(prt))
 def prGreen(prt):
@@ -821,6 +843,8 @@ def run():
 
         if "SUPERVISOR_TOKEN" in os.environ:
             sendToHomeAssistant(index, startingPoints, POINTS_COUNTER, STREAK_DATA)
+        if account['pushSaferToken']:
+            sendToIFTTT(index,startingPoints, POINTS_COUNTER, STREAK_DATA, account)
         if len(ACCOUNTS) > 1:
             time.sleep(random.randint(1200, 5400))
     schedule_next_run() #set a new hour and minute for the next day

@@ -1,4 +1,5 @@
 [{
     "username": "Your Email",
-    "password": "Your Password"
+    "password": "Your Password",
+    "name": "Your account name"
 }]
