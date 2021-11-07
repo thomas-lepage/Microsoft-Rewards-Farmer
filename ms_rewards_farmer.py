@@ -20,7 +20,7 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException,
 
 # Define user-agents
 PC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.183 Safari/537.36 Edg/86.0.622.63'
-MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 10; Pixel 3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0. 3945.79 Mobile Safari/537.36'
+MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 12; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.50 Mobile Safari/537.36'
 
 POINTS_COUNTER = 0
 STREAK_DATA = 0
@@ -95,7 +95,12 @@ def checkBingLogin(browser: WebDriver, isMobile: bool = False):
     time.sleep(8)
     #Accept Cookies
     try:
-        waitForElement(browser, By.ID,'bnp_btn_accept').click()
+        waitForElement(browser, By.ID, 'bnp_btn_accept').click()
+    except:
+        pass
+    try:
+        script = 'document.getElementById("bnp_ttc_div").style.display = "none"'
+        browser.execute_script(script)
     except:
         pass
     if isMobile:
