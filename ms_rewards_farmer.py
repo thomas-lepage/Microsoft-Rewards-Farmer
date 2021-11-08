@@ -103,6 +103,10 @@ def checkBingLogin(browser: WebDriver, isMobile: bool = False):
         browser.execute_script(script)
     except:
         pass
+    try:
+        waitForElement(browser, By.ID, 'bnp_close_link').click()
+    except:
+        pass
     if isMobile:
         try:
             time.sleep(1)
@@ -146,6 +150,15 @@ def checkBingLogin(browser: WebDriver, isMobile: bool = False):
             except:
                 try:
                     browser.waitForElement(browser, By.ID, 'bnp_btn_accept').click()
+                except:
+                    pass
+                try:
+                    script = 'document.getElementById("bnp_ttc_div").style.display = "none"'
+                    browser.execute_script(script)
+                except:
+                    pass
+                try:
+                    waitForElement(browser, By.ID, 'bnp_close_link').click()
                 except:
                     pass
                 time.sleep(1)
@@ -840,7 +853,7 @@ def run():
             print('[BING]', 'Starting Mobile Bing searches...')
             bingSearches(browser, remainingSearchesM, True)
             prGreen('[BING] Finished Mobile Bing searches !')
-            browser.quit()
+        browser.quit()
 
         prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' points today !')
         prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
