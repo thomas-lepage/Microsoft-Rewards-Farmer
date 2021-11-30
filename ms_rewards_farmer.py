@@ -864,7 +864,9 @@ def run():
         if account['pushSaferToken']:
             sendToIFTTT(index,startingPoints, POINTS_COUNTER, STREAK_DATA, account)
         if len(ACCOUNTS) > 1:
-            time.sleep(random.randint(1200, 5400))
+            randomTime = random.randint(1200, 5400)
+            prRed('Next run in ' + randomTime + ' seconds')
+            time.sleep(randomTime)
     schedule_next_run() #set a new hour and minute for the next day
     return schedule.CancelJob #cancel current time schedule
 
