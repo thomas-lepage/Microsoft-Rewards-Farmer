@@ -865,7 +865,7 @@ def run():
             sendToIFTTT(index,startingPoints, POINTS_COUNTER, STREAK_DATA, account)
         if len(ACCOUNTS) > 1:
             randomTime = random.randint(1200, 5400)
-            prRed('Next run in ' + randomTime + ' seconds')
+            prRed('Next run in ' + str(randomTime) + ' seconds')
             time.sleep(randomTime)
     schedule_next_run() #set a new hour and minute for the next day
     return schedule.CancelJob #cancel current time schedule
