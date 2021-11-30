@@ -226,13 +226,13 @@ def findBetween(s: str, first: str, last: str) -> str:
         return ""
 
 def getCCodeLangAndOffset() -> tuple:
-    nfo = ipapi.location()
-    lang = nfo['languages'].split(',')[0]
-    geo = nfo['country']
-    if nfo['utc_offset'] == None:
-        tz = str(0)
-    else:
-        tz = str(round(int(nfo['utc_offset']) / 100 * 60))
+    #nfo = ipapi.location()
+    lang = 'en-CA'
+    geo = 'CA'
+    #if nfo['utc_offset'] == None:
+    #    tz = str(0)
+    #else:
+    tz = '-300'
     return(lang, geo, tz)
 
 def getGoogleTrends(numberOfwords: int) -> list:
