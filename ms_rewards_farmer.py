@@ -56,7 +56,6 @@ def login(browser: WebDriver, email: str, pwd: str, isMobile: bool = False):
     # Wait complete loading
     waitUntilVisible(browser, By.ID, 'loginHeader', 10)
     # Enter password
-    #browser.find_element(By.ID, "i0118").send_keys(pwd)
     browser.execute_script("document.getElementById('i0118').value = '" + pwd + "';")
     pr('[LOGIN]', 'Writing password...')
     # Click next
@@ -825,13 +824,13 @@ def run():
         browser.get('https://rewards.microsoft.com/Signin')
         time.sleep(5)
         pr('[DAILY SET]', 'Trying to complete the Daily Set...')
-        #completeDailySet(browser)
+        completeDailySet(browser)
         prGreen('[DAILY SET] Completed the Daily Set successfully !')
         pr('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
         completePunchCards(browser)
         prGreen('[PUNCH CARDS] Completed the Punch Cards successfully !')
         pr('[MORE PROMO]', 'Trying to complete More Promotions...')
-        #completeMorePromotions(browser)
+        completeMorePromotions(browser)
         prGreen('[MORE PROMO] Completed More Promotions successfully !')
         remainingSearches, remainingSearchesM = getRemainingSearches(browser)
         if remainingSearches != 0:
