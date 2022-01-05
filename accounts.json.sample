@@ -2,5 +2,5 @@
     "username": "Your Email",
     "password": "Your Password",
     "name": "Your account name"
-    "pushSaferToken": "Pushsafer token. Remove this line to disable notification for this account"
+    "iftttAppletUrl": "Applet url"
 }]

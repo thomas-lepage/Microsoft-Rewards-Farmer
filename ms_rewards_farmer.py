@@ -5,11 +5,10 @@ import requests
 import random
 import schedule
 import urllib.parse
-import ipapi
 import os
 import sys
-from urllib.parse import urlencode, quote_plus
-from urllib.request import Request, urlopen
+import urllib.request
+import logging
 
 from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
@@ -48,7 +47,7 @@ def login(browser: WebDriver, email: str, pwd: str, isMobile: bool = False):
     # Wait complete loading
     waitUntilVisible(browser, By.ID, 'loginHeader', 10)
     # Enter email
-    print('[LOGIN]', 'Writing email...')
+    pr('[LOGIN]', 'Writing email...')
     waitForElement(browser, By.NAME, "loginfmt").send_keys(email)
     # Click next
     waitForElement(browser, By.ID, 'idSIButton9').click()
@@ -59,13 +58,13 @@ def login(browser: WebDriver, email: str, pwd: str, isMobile: bool = False):
     # Enter password
     #browser.find_element(By.ID, "i0118").send_keys(pwd)
     browser.execute_script("document.getElementById('i0118').value = '" + pwd + "';")
-    print('[LOGIN]', 'Writing password...')
+    pr('[LOGIN]', 'Writing password...')
     # Click next
     waitForElement(browser, By.ID, 'idSIButton9').click()
     # Wait 5 seconds
     time.sleep(5)
     # Click Security Check
-    print('[LOGIN]', 'Passing security checks...')
+    pr('[LOGIN]', 'Passing security checks...')
     try:
         browser.find_element(By.ID, 'iLandingViewAction').click()
     except (NoSuchElementException, ElementNotInteractableException) as e:
@@ -82,9 +81,9 @@ def login(browser: WebDriver, email: str, pwd: str, isMobile: bool = False):
         time.sleep(5)
     except (NoSuchElementException, ElementNotInteractableException) as e:
         pass
-    print('[LOGIN]', 'Logged-in !')
+    pr('[LOGIN]', 'Logged-in !')
     # Check Login
-    print('[LOGIN]', 'Ensuring login on Bing...')
+    pr('[LOGIN]', 'Ensuring login on Bing...')
     checkBingLogin(browser, isMobile)
 
 def checkBingLogin(browser: WebDriver, isMobile: bool = False):
@@ -287,7 +286,7 @@ def bingSearches(browser: WebDriver, numberOfSearches: int, isMobile: bool = Fal
     search_terms = getGoogleTrends(numberOfSearches)
     for word in search_terms :
         i += 1
-        print('[BING]', str(i) + "/" + str(numberOfSearches))
+        pr('[BING]', str(i) + "/" + str(numberOfSearches))
         points = bingSearch(browser, word, isMobile)
         if points <= POINTS_COUNTER :
             relatedTerms = getRelatedTerms(word)
@@ -513,15 +512,15 @@ def completeDailySet(browser: WebDriver):
             if activity['complete'] == False:
                 cardNumber = int(activity['offerId'][-1:])
                 if activity['promotionType'] == "urlreward":
-                    print('[DAILY SET]', 'Completing search of card ' + str(cardNumber))
+                    pr('[DAILY SET]', 'Completing search of card ' + str(cardNumber))
                     completeDailySetSearch(browser, cardNumber)
                 if activity['promotionType'] == "quiz":
                     if activity['pointProgressMax'] == 50 and activity['pointProgress'] == 0:
-                        print('[DAILY SET]', 'Completing This or That of card ' + str(cardNumber))
+                        pr('[DAILY SET]', 'Completing This or That of card ' + str(cardNumber))
                         completeDailySetThisOrThat(browser, cardNumber)
                     elif (activity['pointProgressMax'] == 40 or activity['pointProgressMax'] == 30) and activity['pointProgress'] == 0:
-                        print('[DAILY SET]', 'Completing quiz of card ' + str(cardNumber))
-                        completeDailySetQuiz(browser, cardNumber)
+                        pr('[DAILY SET]', 'Completing quiz of card ' + str(cardNumber))
+                        pr(browser, cardNumber)
                     elif activity['pointProgressMax'] == 10 and activity['pointProgress'] == 0:
                         searchUrl = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(activity['destinationUrl']).query)['ru'][0])
                         searchUrlQueries = urllib.parse.parse_qs(urllib.parse.urlparse(searchUrl).query)
@@ -530,10 +529,10 @@ def completeDailySet(browser: WebDriver):
                             filter = filter.split(':', 1)
                             filters[filter[0]] = filter[1]
                         if "PollScenarioId" in filters:
-                            print('[DAILY SET]', 'Completing poll of card ' + str(cardNumber))
+                            pr('[DAILY SET]', 'Completing poll of card ' + str(cardNumber))
                             completeDailySetSurvey(browser, cardNumber)
                         else:
-                            print('[DAILY SET]', 'Completing quiz of card ' + str(cardNumber))
+                            pr('[DAILY SET]', 'Completing quiz of card ' + str(cardNumber))
                             completeDailySetVariableActivity(browser, cardNumber)
         except:
             resetTabs(browser)
@@ -778,34 +777,30 @@ def sendToHomeAssistant(index, startingPoints, points, streakData):
     requests.post(URL, data=json.dumps(DATA), headers=HEADERS)
 
 def sendToIFTTT(index, startingPoints, points, streakData, account):
-    bonusData = [int(s) for s in streakData.split() if s.isdigit()]
-    urlPush = 'https://www.pushsafer.com/api'
-    post_fields = {
-        "t" : 'Rewards de ' + account['name'],
-        "m" : 'Today points : ' + str(points - startingPoints) + ' Total points : ' + str(points) + ' Streak : ' + streakData.split(',')[0] + (' day.' if streakData.split(',')[0] == '1' else ' days!'),
-        "s" : 11,
-        "v" : 3,
-        "i" : 33,
-        "c" : '#FF0000',
-        "d" : 'a',
-        "u" : '',
-        "ut" : '',
-        "k" : account['pushSaferToken'],
-        "pr" : '0',
-    }
-    request = Request(urlPush, urlencode(post_fields).encode())
-    json = urlopen(request).read().decode()
-    prGreen('[PUSH NOTIFICATIONS]' + json)
+    message = 'Today points : ' + str(points - startingPoints) + ' Total points : ' + str(points) + ' Streak : ' + streakData.split(',')[0] + (' day.' if streakData.split(',')[0] == '1' else ' days!')
+    url = account['iftttAppletUrl']
+    data = json.dumps({"value1": message}).encode()
+    req = urllib.request.Request(url)
+    req.add_header('Content-Type', 'application/json')
+    with urllib.request.urlopen(req, data) as opened_req:
+        result = opened_req.read().decode()
+    prGreen('[PUSH NOTIFICATIONS]' + result)
 
 def prRed(prt):
     print("\033[31m{}\033[00m".format(prt))
+    logger.trace("\033[31m{}\033[00m".format(prt))
 def prGreen(prt):
     print("\033[32m{}\033[00m".format(prt))
+    logger.trace("\033[32m{}\033[00m".format(prt))
 def prPurple(prt):
     print("\033[35m{}\033[00m".format(prt))
+    logger.trace("\033[35m{}\033[00m".format(prt))
 def prYellow(prt):
     print("\033[33m{}\033[00m".format(prt))
-
+    logger.trace("\033[33m{}\033[00m".format(prt))
+def pr(*prt: object):
+    print(' '.join(prt))
+    logger.trace(' '.join(prt))
 
 def run():
     prRed("""
@@ -822,35 +817,35 @@ def run():
 
         prYellow('********************' + account['username'] + '********************')
         browser = browserSetup(True, PC_USER_AGENT)
-        print('[LOGIN]', 'Logging-in...')
+        pr('[LOGIN]', 'Logging-in...')
         login(browser, account['username'], account['password'])
         prGreen('[LOGIN] Logged-in successfully !')
         startingPoints = POINTS_COUNTER
         prGreen('[POINTS] You have ' + str(POINTS_COUNTER) + ' points on your account !')
         browser.get('https://rewards.microsoft.com/Signin')
         time.sleep(5)
-        print('[DAILY SET]', 'Trying to complete the Daily Set...')
-        completeDailySet(browser)
+        pr('[DAILY SET]', 'Trying to complete the Daily Set...')
+        #completeDailySet(browser)
         prGreen('[DAILY SET] Completed the Daily Set successfully !')
-        print('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
+        pr('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
         completePunchCards(browser)
         prGreen('[PUNCH CARDS] Completed the Punch Cards successfully !')
-        print('[MORE PROMO]', 'Trying to complete More Promotions...')
-        completeMorePromotions(browser)
+        pr('[MORE PROMO]', 'Trying to complete More Promotions...')
+        #completeMorePromotions(browser)
         prGreen('[MORE PROMO] Completed More Promotions successfully !')
         remainingSearches, remainingSearchesM = getRemainingSearches(browser)
         if remainingSearches != 0:
-            print('[BING]', 'Starting Desktop and Edge Bing searches...')
+            pr('[BING]', 'Starting Desktop and Edge Bing searches...')
             bingSearches(browser, remainingSearches)
             prGreen('[BING] Finished Desktop and Edge Bing searches !')
         browser.quit()
 
         if remainingSearchesM != 0:
             browser = browserSetup(True, MOBILE_USER_AGENT)
-            print('[LOGIN]', 'Logging-in...')
+            pr('[LOGIN]', 'Logging-in...')
             login(browser, account['username'], account['password'], True)
-            print('[LOGIN]', 'Logged-in successfully !')
-            print('[BING]', 'Starting Mobile Bing searches...')
+            pr('[LOGIN]', 'Logged-in successfully !')
+            pr('[BING]', 'Starting Mobile Bing searches...')
             bingSearches(browser, remainingSearchesM, True)
             prGreen('[BING] Finished Mobile Bing searches !')
         browser.quit()
@@ -861,11 +856,12 @@ def run():
 
         if "SUPERVISOR_TOKEN" in os.environ:
             sendToHomeAssistant(index, startingPoints, POINTS_COUNTER, STREAK_DATA)
-        if account['pushSaferToken']:
-            sendToIFTTT(index,startingPoints, POINTS_COUNTER, STREAK_DATA, account)
+        #if account['iftttAppletUrl']:
+            #sendToIFTTT(index,startingPoints, POINTS_COUNTER, STREAK_DATA, account)
         if len(ACCOUNTS) > 1:
             randomTime = random.randint(1200, 5400)
-            prRed('Next run in ' + str(randomTime) + ' seconds')
+            time_str = (datetime.now() + timedelta(seconds=random.randint(1200, 5400))).strftime("%H:%M")
+            prRed("Next account run at {}".format(time_str))
             time.sleep(randomTime)
     schedule_next_run() #set a new hour and minute for the next day
     return schedule.CancelJob #cancel current time schedule
@@ -879,7 +875,9 @@ except FileNotFoundError:
     with open(account_path, 'w') as f:
         f.write(json.dumps([{
             "username": "Your Email",
-            "password": "Your Password"
+            "password": "Your Password",
+            "name": "Name of the account",
+            "iftttAppletUrl": "Applet url"
         }], indent=4))
     prPurple("""
 [ACCOUNT] Accounts credential file "accounts.json" created.
@@ -887,6 +885,25 @@ except FileNotFoundError:
     """)
     input()
     ACCOUNTS = json.load(open(account_path, "r"))
+
+
+logging.TRACE = 51
+logging.addLevelName(logging.TRACE, "TRACE")
+
+def _trace(logger, message, *args, **kwargs):
+    if logger.isEnabledFor(logging.TRACE):
+        logger._log(logging.TRACE, message, args, **kwargs)
+
+logging.Logger.trace = _trace 
+
+#now we will Create and configure logger 
+logging.basicConfig(filename="ms-rewards.log", 
+					format='%(asctime)s %(message)s', 
+					filemode='a+') 
+#Let us Create an object 
+logger=logging.getLogger() 
+logger.setLevel(logging.TRACE)
+
 
 schedule.every().day.at("00:00").do(run) #Start scheduling to be replaced by random ints after first run is over
 
@@ -897,7 +914,7 @@ try:
         schedule.run_pending()
         time.sleep(60)
 except KeyboardInterrupt:
-    print('Interrupted')
+    pr('Interrupted')
     try:
         sys.exit(0)
     except SystemExit:
