@@ -519,7 +519,7 @@ def completeDailySet(browser: WebDriver):
                         completeDailySetThisOrThat(browser, cardNumber)
                     elif (activity['pointProgressMax'] == 40 or activity['pointProgressMax'] == 30) and activity['pointProgress'] == 0:
                         pr('[DAILY SET]', 'Completing quiz of card ' + str(cardNumber))
-                        pr(browser, cardNumber)
+                        completeDailySetQuiz(browser, cardNumber)
                     elif activity['pointProgressMax'] == 10 and activity['pointProgress'] == 0:
                         searchUrl = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(activity['destinationUrl']).query)['ru'][0])
                         searchUrlQueries = urllib.parse.parse_qs(urllib.parse.urlparse(searchUrl).query)
