@@ -855,8 +855,8 @@ def run():
 
         if "SUPERVISOR_TOKEN" in os.environ:
             sendToHomeAssistant(index, startingPoints, POINTS_COUNTER, STREAK_DATA)
-        #if account['iftttAppletUrl']:
-            #sendToIFTTT(index,startingPoints, POINTS_COUNTER, STREAK_DATA, account)
+        if account['iftttAppletUrl']:
+            sendToIFTTT(index,startingPoints, POINTS_COUNTER, STREAK_DATA, account)
         if len(ACCOUNTS) > 1:
             randomTime = random.randint(1200, 5400)
             time_str = (datetime.now() + timedelta(seconds=random.randint(1200, 5400))).strftime("%H:%M")
