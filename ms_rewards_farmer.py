@@ -489,7 +489,6 @@ def completeDailySetThisOrThat(browser: WebDriver, cardNumber: int):
 
 def getDashboardData(browser: WebDriver) -> dict:
     dashboard = findBetween(waitForElement(browser, By.XPATH, '/html/body').get_attribute('innerHTML'), "var dashboard = ", ";\n        appDataModule.constant(\"prefetchedDashboard\", dashboard);")
-    # dashboard = findBetween(browser.find_element(By.XPATH, '/html/body').get_attribute('innerHTML'), "var dashboard = ", ";\n        appDataModule.constant(\"prefetchedDashboard\", dashboard);")
     try:
         dashboard = json.loads(dashboard)
     except:
@@ -751,35 +750,9 @@ def schedule_next_run(): # set next run for random hour and minute each day
    time.sleep(14400) #sleep so job will not happen twice in a day
    schedule.every().day.at(time_str).do(run)
 
-def sendToHomeAssistant(index, startingPoints, points, streakData):
-    bonusData = [int(s) for s in streakData.split() if s.isdigit()]
-    if len(ACCOUNTS) > 1:
-        URL = "http://supervisor/core/api/states/sensor.msrewards_" + str(index)
-    else:
-        URL = "http://supervisor/core/api/states/sensor.msrewards"
-    SUPERVISOR_TOKEN = os.environ["SUPERVISOR_TOKEN"]
-    HEADERS = {
-       "Authorization": "Bearer " + SUPERVISOR_TOKEN,
-       "Content-Type": "application/json"
-   }
-    DATA = {
-        "state": points,
-        "attributes": {
-            "unit_of_measurement": "points",
-            "todays_harvest": points - startingPoints,
-            "streak": int(streakData.split(',')[0]),
-            "days_until_bonus": int(bonusData[0]) if int(bonusData[0]) < 20 else 0,
-            "bonus": int(bonusData[0]) if int(bonusData[0]) > 20 else 0
-        }
-    }
-
-    requests.post(URL, data=json.dumps(DATA), headers=HEADERS)
-
-def sendToIFTTT(index, startingPoints, points, streakData, account):
-    message = 'Today points : ' + str(points - startingPoints) + ' Total points : ' + str(points) + ' Streak : ' + streakData.split(',')[0] + (' day.' if streakData.split(',')[0] == '1' else ' days!')
-    url = account['iftttAppletUrl']
+def sendToIFTTT(message, iftttUrl):
     data = json.dumps({"value1": message}).encode()
-    req = urllib.request.Request(url)
+    req = urllib.request.Request(iftttUrl)
     req.add_header('Content-Type', 'application/json')
     with urllib.request.urlopen(req, data) as opened_req:
         result = opened_req.read().decode()
@@ -800,6 +773,46 @@ def prYellow(prt):
 def pr(*prt: object):
     print(' '.join(prt))
     logger.trace(' '.join(prt))
+
+def getActivitiesToComplete(browser: WebDriver) -> dict:
+    browser.refresh()
+    time.sleep(10)
+
+    dashboard = getDashboardData(browser)
+    toComplete = {}
+
+    #DAILYSETPROMOTIONS
+    dailySet = dashboard['dailySetPromotions']
+    todayDate = datetime.today().strftime('%m/%d/%Y')
+    todayPack = []
+    for date, data in dailySet.items():
+        if date == todayDate:
+            todayPack = data
+    toComplete['dailySetPromotions'] = []
+    for activity in todayPack:
+        if activity['complete'] == False:
+            toComplete['dailySetPromotions'].append(activity['offerId'])
+
+    #PUNCHCARDS
+    punchCards = dashboard['punchCards']
+    toComplete['punchCards'] = []
+    for promotion in punchCards:
+        for childPromotion in promotion['childPromotions']:
+            if childPromotion['complete'] == False and childPromotion['promotionType'] != 'appstore':
+                if childPromotion['pointProgress'] == 0 and childPromotion['pointProgressMax'] > 0:
+                    toComplete['punchCards'].append(childPromotion['offerId'] + ' Type: ' + childPromotion['promotionType'])
+
+    #MOREPROMOTIONS
+    morePromotions = dashboard['morePromotions']
+    toComplete['morePromotions'] = []
+    for promotion in morePromotions:
+        if promotion['complete'] == False and promotion['promotionType'] != 'appstore':
+            if promotion['pointProgress'] == 0 and promotion['pointProgressMax'] > 0:
+                if not 'ShopAndEarn' in promotion['offerId']:
+                    toComplete['morePromotions'].append(promotion['offerId'] + ' Type: ' + promotion['promotionType'])
+    
+    toComplete = {k:v for k,v in toComplete.items() if v}
+    return toComplete
 
 def run():
     prRed("""
@@ -833,6 +846,10 @@ def run():
         completeMorePromotions(browser)
         prGreen('[MORE PROMO] Completed More Promotions successfully !')
         remainingSearches, remainingSearchesM = getRemainingSearches(browser)
+        toComplete = getActivitiesToComplete(browser)
+        if (toComplete):
+            pr(json.dumps(toComplete))
+            sendToIFTTT(account['name'] + '\'s account didn\'t complete all activities: ' + account['name'] + '. Activities to complete: ' + json.dumps(toComplete), account['iftttAppletUrl'])
         if remainingSearches != 0:
             pr('[BING]', 'Starting Desktop and Edge Bing searches...')
             bingSearches(browser, remainingSearches)
@@ -853,15 +870,17 @@ def run():
         prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
         prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2])
 
-        if "SUPERVISOR_TOKEN" in os.environ:
-            sendToHomeAssistant(index, startingPoints, POINTS_COUNTER, STREAK_DATA)
         if account['iftttAppletUrl']:
-            sendToIFTTT(index,startingPoints, POINTS_COUNTER, STREAK_DATA, account)
+            message = account['name'] + '\'s account completed. Today points : ' + str(POINTS_COUNTER - startingPoints) + ' Total points : ' + str(POINTS_COUNTER) + ' Streak : ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!')
+            sendToIFTTT(message, account['iftttAppletUrl'])
+
         if len(ACCOUNTS) > 1:
-            randomTime = random.randint(1200, 5400)
-            time_str = (datetime.now() + timedelta(seconds=random.randint(1200, 5400))).strftime("%H:%M")
-            prRed("Next account run at {}".format(time_str))
-            time.sleep(randomTime)
+            if index < len(ACCOUNTS):
+                randomTime = random.randint(1200, 5400)
+                prRed("Current time {}".format(datetime.now().strftime("%H:%M")))
+                time_str = (datetime.now() + timedelta(seconds=random.randint(1200, 5400))).strftime("%H:%M")
+                prRed("Next account run at {}".format(time_str))
+                time.sleep(randomTime)
     schedule_next_run() #set a new hour and minute for the next day
     return schedule.CancelJob #cancel current time schedule
 
