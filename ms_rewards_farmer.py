@@ -878,7 +878,7 @@ def run():
             if index < len(ACCOUNTS):
                 randomTime = random.randint(1200, 5400)
                 prRed("Current time {}".format(datetime.now().strftime("%H:%M")))
-                time_str = (datetime.now() + timedelta(seconds=random.randint(1200, 5400))).strftime("%H:%M")
+                time_str = (datetime.now() + timedelta(seconds=randomTime)).strftime("%H:%M")
                 prRed("Next account run at {}".format(time_str))
                 time.sleep(randomTime)
     schedule_next_run() #set a new hour and minute for the next day
