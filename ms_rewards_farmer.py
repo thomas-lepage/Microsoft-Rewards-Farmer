@@ -386,10 +386,10 @@ def completeDailySetQuiz(browser: WebDriver, cardNumber: int):
                     answers.append("rqAnswerOption" + str(i))
             for answer in answers:
                 browser.find_element(By.ID, answer).click()
-                time.sleep(5)
+                time.sleep(10)
                 if not waitUntilQuestionRefresh(browser):
                     return
-            time.sleep(5)
+            time.sleep(10)
         elif numberOfOptions == 4:
             correctOption = browser.execute_script("return _w.rewardsQuizRenderInfo.correctAnswer")
             for i in range(4):
@@ -399,7 +399,7 @@ def completeDailySetQuiz(browser: WebDriver, cardNumber: int):
                     if not waitUntilQuestionRefresh(browser):
                         return
                     break
-            time.sleep(5)
+            time.sleep(10)
     time.sleep(5)
     browser.close()
     time.sleep(2)
