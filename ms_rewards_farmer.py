@@ -806,7 +806,7 @@ def getActivitiesToComplete(browser: WebDriver) -> dict:
     morePromotions = dashboard['morePromotions']
     toComplete['morePromotions'] = []
     for promotion in morePromotions:
-        if promotion['complete'] == False and promotion['promotionType'] != 'appstore':
+        if promotion['complete'] == False and promotion['promotionType'] != 'appstore' and promotion['offerId'] != '"ENCA_lifecycle_rewardsca_Got_to_Level_2"':
             if promotion['pointProgress'] == 0 and promotion['pointProgressMax'] > 0:
                 if not 'ShopAndEarn' in promotion['offerId']:
                     toComplete['morePromotions'].append(promotion['offerId'] + ' Type: ' + promotion['promotionType'])
