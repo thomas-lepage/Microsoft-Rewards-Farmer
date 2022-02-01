@@ -846,10 +846,6 @@ def run():
         completeMorePromotions(browser)
         prGreen('[MORE PROMO] Completed More Promotions successfully !')
         remainingSearches, remainingSearchesM = getRemainingSearches(browser)
-        toComplete = getActivitiesToComplete(browser)
-        if (toComplete):
-            pr(json.dumps(toComplete))
-            sendToIFTTT(account['name'] + '\'s account didn\'t complete all activities: ' + account['name'] + '. Activities to complete: ' + json.dumps(toComplete), account['iftttAppletUrl'])
         if remainingSearches != 0:
             pr('[BING]', 'Starting Desktop and Edge Bing searches...')
             bingSearches(browser, remainingSearches)
@@ -864,6 +860,27 @@ def run():
             pr('[BING]', 'Starting Mobile Bing searches...')
             bingSearches(browser, remainingSearchesM, True)
             prGreen('[BING] Finished Mobile Bing searches !')
+
+        toComplete = getActivitiesToComplete(browser)
+        if (toComplete):
+            browser.quit()
+            browser = browserSetup(True, PC_USER_AGENT)
+            pr('[LOGIN]', 'Logging-in to complete remaining task...')
+            login(browser, account['username'], account['password'])
+            if 'dailySetPromotions' in toComplete:
+                completeDailySet(browser)
+            if 'punchCards' in toComplete:
+                completePunchCards(browser)
+            if 'morePromotion' in toComplete:
+                completeMorePromotions(browser)
+            time.sleep(random.randint(20, 60))
+            browser.refresh()
+            time.sleep(random.randint(20, 60))
+            toComplete = getActivitiesToComplete(browser)
+            if (toComplete):
+                pr(json.dumps(toComplete))
+                sendToIFTTT(account['name'] + '\'s account didn\'t complete all activities: ' + account['name'] + '. Activities to complete: ' + json.dumps(toComplete), account['iftttAppletUrl'])
+            
         browser.quit()
 
         prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' points today !')
@@ -871,7 +888,7 @@ def run():
         prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2])
 
         if account['iftttAppletUrl']:
-            message = account['name'] + '\'s account completed. Today points : ' + str(POINTS_COUNTER - startingPoints) + ' Total points : ' + str(POINTS_COUNTER) + ' Streak : ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!')
+            message = account['name'] + '\'s account completed. Today : ' + str(POINTS_COUNTER - startingPoints) + ' Total : ' + str(POINTS_COUNTER) + ' Streak : ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!')
             sendToIFTTT(message, account['iftttAppletUrl'])
 
         if len(ACCOUNTS) > 1:
