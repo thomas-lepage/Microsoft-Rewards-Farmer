@@ -775,7 +775,7 @@ def pr(*prt: object):
     logger.trace(' '.join(prt))
 
 def getActivitiesToComplete(browser: WebDriver) -> dict:
-    browser.refresh()
+    browser.get('https://rewards.microsoft.com/Signin')
     time.sleep(10)
 
     dashboard = getDashboardData(browser)
@@ -813,6 +813,27 @@ def getActivitiesToComplete(browser: WebDriver) -> dict:
     
     toComplete = {k:v for k,v in toComplete.items() if v}
     return toComplete
+
+def retryIfIncompletActivities(browser: WebDriver, account):
+    browser = browserSetup(True, PC_USER_AGENT)
+    pr('[LOGIN]', 'Logging-in to complete remaining task...')
+    login(browser, account['username'], account['password'])
+    toComplete = getActivitiesToComplete(browser)
+    if (toComplete):
+        if 'dailySetPromotions' in toComplete:
+            completeDailySet(browser)
+        if 'punchCards' in toComplete:
+            completePunchCards(browser)
+        if 'morePromotion' in toComplete:
+            completeMorePromotions(browser)
+        time.sleep(random.randint(20, 60))
+        browser.refresh()
+        time.sleep(random.randint(20, 60))
+        toComplete = getActivitiesToComplete(browser)
+        if (toComplete):
+            pr(json.dumps(toComplete))
+            sendToIFTTT(account['name'] + '\'s account didn\'t complete all activities: ' + account['name'] + '. Activities to complete: ' + json.dumps(toComplete), account['iftttAppletUrl'])
+    browser.quit()
 
 def run():
     prRed("""
@@ -860,29 +881,10 @@ def run():
             pr('[BING]', 'Starting Mobile Bing searches...')
             bingSearches(browser, remainingSearchesM, True)
             prGreen('[BING] Finished Mobile Bing searches !')
-
-        toComplete = getActivitiesToComplete(browser)
-        if (toComplete):
-            browser.quit()
-            browser = browserSetup(True, PC_USER_AGENT)
-            pr('[LOGIN]', 'Logging-in to complete remaining task...')
-            login(browser, account['username'], account['password'])
-            if 'dailySetPromotions' in toComplete:
-                completeDailySet(browser)
-            if 'punchCards' in toComplete:
-                completePunchCards(browser)
-            if 'morePromotion' in toComplete:
-                completeMorePromotions(browser)
-            time.sleep(random.randint(20, 60))
-            browser.refresh()
-            time.sleep(random.randint(20, 60))
-            toComplete = getActivitiesToComplete(browser)
-            if (toComplete):
-                pr(json.dumps(toComplete))
-                sendToIFTTT(account['name'] + '\'s account didn\'t complete all activities: ' + account['name'] + '. Activities to complete: ' + json.dumps(toComplete), account['iftttAppletUrl'])
-            
         browser.quit()
 
+        retryIfIncompletActivities(browser, account)
+        
         prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' points today !')
         prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
         prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2])
