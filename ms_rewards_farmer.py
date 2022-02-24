@@ -693,6 +693,16 @@ def completeMorePromotionThisOrThat(browser: WebDriver, cardNumber: int):
     browser.switch_to.window(window_name=browser.window_handles[0])
     time.sleep(2)
 
+def completeMorePromotionClick(browser: WebDriver, cardNumber: int):
+    browser.find_element(By.XPATH, '//*[@id="more-activities"]/div/mee-card[' + str(cardNumber) + ']/div/card-content/mee-rewards-more-activities-card-item/div/a').click()
+    time.sleep(1)
+    browser.switch_to.window(window_name=browser.window_handles[1])
+    time.sleep(8)
+    time.sleep(5)
+    browser.close()
+    time.sleep(2)
+    browser.switch_to.window(window_name=browser.window_handles[0])
+
 def completeMorePromotions(browser: WebDriver):
     morePromotions = getDashboardData(browser)['morePromotions']
     i = 0
@@ -710,6 +720,8 @@ def completeMorePromotions(browser: WebDriver):
                     elif promotion['pointProgressMax'] == 50:
                         completeMorePromotionThisOrThat(browser, i)
                 else:
+                    if promotion['pointProgressMax'] == 10:
+                        completeMorePromotionClick(browser, i)
                     if promotion['pointProgressMax'] == 100 or promotion['pointProgressMax'] == 200:
                         completeMorePromotionSearch(browser, i)
         except:
