@@ -884,7 +884,8 @@ def run():
     for index, account in enumerate(ACCOUNTS, start=1):
         try:
             prYellow('********************' + account['username'] + '********************')
-            browser = browserSetup(False, PC_USER_AGENT)
+            browser = browserSetup(True, PC_USER_AGENT)
+            time.sleep(1000000)
             pr('[LOGIN]', 'Logging-in...')
             login(browser, account['username'], account['password'])
             prGreen('[LOGIN] Logged-in successfully !')
