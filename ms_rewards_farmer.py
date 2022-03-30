@@ -550,27 +550,53 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
     browser.get(url)
     for child in childPromotions:
         if child['complete'] == False:
+            browser.execute_script("window.open('%s');" % child['attributes']['destination'])
+            time.sleep(5)
+            browser.switch_to.window(window_name = browser.window_handles[1])
             if child['promotionType'] == "urlreward":
-                browser.execute_script("document.getElementsByClassName('offer-cta')[0].click()")
-                time.sleep(1)
-                browser.switch_to.window(window_name = browser.window_handles[1])
                 time.sleep(random.randint(13, 17))
                 browser.close()
                 time.sleep(2)
                 browser.switch_to.window(window_name = browser.window_handles[0])
                 time.sleep(2)
             if child['promotionType'] == "quiz":
-                browser.execute_script("document.getElementsByClassName('offer-cta')[0].click()")
-                time.sleep(1)
-                browser.switch_to.window(window_name = browser.window_handles[1])
                 time.sleep(8)
-                counter = str(browser.find_element(By.XPATH, '//*[@id="QuestionPane0"]/div[2]').get_attribute('innerHTML'))[:-1][1:]
-                numberOfQuestions = max([int(s) for s in counter.split() if s.isdigit()])
-                for question in range(numberOfQuestions):
-                    browser.execute_script('document.evaluate("//*[@id=\'QuestionPane' + str(question) + '\']/div[1]/div[2]/a[' + str(random.randint(1, 3)) + ']/div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.click()')
-                    time.sleep(5)
-                    browser.find_element(By.XPATH, '//*[@id="AnswerPane' + str(question) + '"]/div[1]/div[2]/div[4]/a/div/span/input').click()
-                    time.sleep(3)
+                browser.find_element(By.XPATH, '//*[@id="rqStartQuiz"]').click()
+                waitUntilVisible(browser, By.XPATH, '//*[@id="currentQuestionContainer"]/div/div[1]', 10)
+                try:
+                    counter = str(browser.find_element(By.XPATH, '//*[@id="QuestionPane0"]/div[2]').get_attribute('innerHTML'))[:-1][1:]
+                    numberOfQuestions = max([int(s) for s in counter.split() if s.isdigit()])
+                    for question in range(numberOfQuestions):
+                        browser.execute_script('document.evaluate("//*[@id=\'QuestionPane' + str(question) + '\']/div[1]/div[2]/a[' + str(random.randint(1, 3)) + ']/div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.click()')
+                        time.sleep(5)
+                        browser.find_element(By.XPATH, '//*[@id="AnswerPane' + str(question) + '"]/div[1]/div[2]/div[4]/a/div/span/input').click()
+                        time.sleep(3)
+                except NoSuchElementException as err:
+                    numberOfQuestions = browser.execute_script("return _w.rewardsQuizRenderInfo.maxQuestions")
+                    numberOfOptions = browser.execute_script("return _w.rewardsQuizRenderInfo.numberOfOptions")
+                    for question in range(numberOfQuestions):
+                        if numberOfOptions == 8:
+                            answers = []
+                            for i in range(8):
+                                if browser.find_element(By.ID, "rqAnswerOption" + str(i)).get_attribute("iscorrectoption").lower() == "true":
+                                    answers.append("rqAnswerOption" + str(i))
+                            for answer in answers:
+                                browser.find_element(By.ID, answer).click()
+                                time.sleep(5)
+                                if not waitUntilQuestionRefresh(browser):
+                                    return
+                            time.sleep(5)
+                        elif numberOfOptions == 4:
+                            correctOption = browser.execute_script("return _w.rewardsQuizRenderInfo.correctAnswer")
+                            for i in range(4):
+                                if browser.find_element(By.ID, "rqAnswerOption" + str(i)).get_attribute("data-option") == correctOption:
+                                    browser.find_element(By.ID, "rqAnswerOption" + str(i)).click()
+                                    time.sleep(5)
+                                    if not waitUntilQuestionRefresh(browser):
+                                        return
+                                    break
+                            time.sleep(5)
+                    pass
                 time.sleep(5)
                 browser.close()
                 time.sleep(2)
@@ -582,21 +608,15 @@ def completePunchCards(browser: WebDriver):
     punchCards = getDashboardData(browser)['punchCards']
     for punchCard in punchCards:
         try:
-            if punchCard['parentPromotion'] != None and punchCard['childPromotions'] != None and punchCard['parentPromotion']['complete'] == False and punchCard['parentPromotion']['pointProgressMax'] != 0:
+            if punchCard['parentPromotion'] != None and punchCard['childPromotions'] != None and punchCard['parentPromotion']['complete'] == False and punchCard['parentPromotion']['pointProgressMax'] != 0 and punchCard['parentPromotion']['promotionType'] != 'appstore':
                 url = punchCard['parentPromotion']['attributes']['destination']
-                path = url.replace('https://account.microsoft.com/rewards/dashboard/','')
-                userCode = path[:4]
-                dest = 'https://account.microsoft.com/rewards/dashboard/' + userCode + path.split(userCode)[1]
-                completePunchCard(browser, dest, punchCard['childPromotions'])
-        except:
+                completePunchCard(browser, url, punchCard['childPromotions'])
+        except Exception as err:
+            pr(err)
             resetTabs(browser)
     time.sleep(2)
-    browser.get('https://account.microsoft.com/rewards/')
+    browser.get('https://rewards.microsoft.com/')
     time.sleep(2)
-    try:
-        STREAK_DATA = browser.find_element(By.ID, 'streak').get_attribute('aria-label')
-    except NoSuchElementException as err:
-        raise Exception('Error while getting the streak', err)
 
 def completeMorePromotionSearch(browser: WebDriver, cardNumber: int):
     browser.find_element(By.XPATH, '//*[@id="more-activities"]/div/mee-card[' + str(cardNumber) + ']/div/card-content/mee-rewards-more-activities-card-item/div/a').click()
@@ -738,7 +758,10 @@ def completeMorePromotions(browser: WebDriver):
         except:
             resetTabs(browser)
 
-def getRemainingSearches(browser: WebDriver):
+def getRemainingSearches(browser: WebDriver, mobileOnly: bool = False):
+    browser.get('https://rewards.microsoft.com/')
+    time.sleep(5)
+
     dashboard = getDashboardData(browser)
     searchPoints = 1
     counters = dashboard['userStatus']['counters']
@@ -764,6 +787,8 @@ def getRemainingSearches(browser: WebDriver):
         progressMobile = counters['mobileSearch'][0]['pointProgress']
         targetMobile = counters['mobileSearch'][0]['pointProgressMax']
         remainingMobile = int((targetMobile - progressMobile) / searchPoints)
+    if mobileOnly:
+        return remainingMobile;
     return remainingDesktop, remainingMobile
 
 def schedule_next_run(): # set next run for random hour and minute each day
@@ -798,7 +823,7 @@ def pr(*prt: object):
     logger.trace(' '.join(prt))
 
 def getActivitiesToComplete(browser: WebDriver) -> dict:
-    browser.get('https://rewards.microsoft.com/Signin')
+    browser.get('https://rewards.microsoft.com/')
     time.sleep(10)
 
     dashboard = getDashboardData(browser)
@@ -829,47 +854,117 @@ def getActivitiesToComplete(browser: WebDriver) -> dict:
     morePromotions = dashboard['morePromotions']
     toComplete['morePromotions'] = []
     for promotion in morePromotions:
-        if promotion['complete'] == False and promotion['promotionType'] != 'appstore' and promotion['offerId'] != 'ENCA_lifecycle_rewardsca_Got_to_Level_2':
+        if promotion['complete'] == False and promotion['promotionType'] != 'appstore' and promotion['offerId'] != 'ENCA_lifecycle_rewardsca_Got_to_Level_2' and promotion['offerId'] != 'ENCA_lifecycle_rewardsca_Onboarding_100_bonus_points':
             if promotion['pointProgress'] == 0 and promotion['pointProgressMax'] > 0:
                 if not 'ShopAndEarn' in promotion['offerId']:
                     toComplete['morePromotions'].append(promotion['offerId'] + ' Type: ' + promotion['promotionType'])
     
     #SEARCH
     remainingSearches, remainingSearchesM = getRemainingSearches(browser)
+
     toComplete['desktopSearch'] = []
     toComplete['mobileSearch'] = []
+
     if remainingSearches != 0:
         toComplete['desktopSearch'] = remainingSearches
 
-    if remainingSearchesM != 0:
-        toComplete['mobileSearch'] = remainingSearchesM
     toComplete = {k:v for k,v in toComplete.items() if v}
     return toComplete
 
-def retryIfIncompletActivities(account):
+def getStreakData(browser):
+    browser.get('https://rewards.microsoft.com/')
+    try:
+        time.sleep(8)
+        return browser.find_element(By.ID, 'streak').get_attribute('aria-label')
+    except (Exception, NoSuchElementException) as err:
+        prRed(err)
+        raise Exception('Error while getting the streak', err)
+
+def doAccount(account):
+    prYellow('********************' + account['username'] + '********************')
     browser = browserSetup(True, PC_USER_AGENT)
-    pr('[LOGIN]', 'Logging-in to complete remaining task...')
+    pr('[LOGIN]', 'Logging-in...')
     login(browser, account['username'], account['password'])
+    prGreen('[LOGIN] Logged-in successfully !')
+    startingPoints = POINTS_COUNTER
+    prGreen('[POINTS] You have ' + str(POINTS_COUNTER) + ' points on your account !')
+    STREAK_DATA = getStreakData(browser)
+
+    # Check if there's things to do.
+    attempts = 0
     toComplete = getActivitiesToComplete(browser)
-    if (toComplete):
+    while bool(toComplete) and attempts < 5:
+        prYellow("[INFO] Desktop Attempt #" + str(attempts))
+        time.sleep(5)
+
         if 'dailySetPromotions' in toComplete:
-            completeDailySet(browser)
+            pr('[DAILY SET]', 'Trying to complete the Daily Set...')
+            try:
+                completeDailySet(browser)
+                prGreen('[DAILY SET] Completed the Daily Set successfully !')
+            except (Exception, SessionNotCreatedException) as err:
+                prRed('[DAILY SET] Did not complet Daily Set !')
+                prRed(err)
+                pass
         if 'punchCards' in toComplete:
-            completePunchCards(browser)
-        if 'morePromotion' in toComplete:
-            completeMorePromotions(browser)
+            pr('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
+            try:
+                completePunchCards(browser)
+                prGreen('[PUNCH CARDS] Completed the Punch Cards successfully !')
+            except (Exception, SessionNotCreatedException) as err:
+                prRed('[PUNCH CARDS] Did not complet Punch Cards !')
+                prRed(err)
+                pass
+        if 'morePromotions' in toComplete:
+            pr('[MORE PROMO]', 'Trying to complete More Promotions...')
+            try:
+                completeMorePromotions(browser)
+                prGreen('[MORE PROMO] Completed More Promotions successfully !')
+            except (Exception, SessionNotCreatedException) as err:
+                prRed('[MORE PROMO] Did not complet More Promotions !')
+                prRed(err)
+                pass
         if 'desktopSearch' in toComplete:
-            bingSearches(browser, toComplete['desktopSearch'])
+            pr('[BING]', 'Starting Desktop and Edge Bing searches...')
+            try:
+                bingSearches(browser, toComplete['desktopSearch'])
+                prGreen('[BING] Finished Desktop and Edge Bing searches !')
+            except (Exception, SessionNotCreatedException) as err:
+                prRed('[BING] Did not complet Desktop search !')
+                prRed(err)
+                pass
 
-        time.sleep(random.randint(20, 60))
-        browser.refresh()
-        time.sleep(random.randint(20, 60))
+        attempts = attempts + 1
+        prYellow('[INFO] Checking if everything in desktop is done...')
         toComplete = getActivitiesToComplete(browser)
-        if (toComplete):
-            pr(json.dumps(toComplete))
-            sendToIFTTT(account['name'] + '\'s account didn\'t complete all activities: ' + account['name'] + '. Activities to complete: ' + json.dumps(toComplete), account['iftttAppletUrl'])
-    browser.quit()
+        browser.get('https://rewards.microsoft.com/')
+        STREAK_DATA = getStreakData(browser)
 
+    browser.quit()
+    browser = None
+    browser = browserSetup(True, MOBILE_USER_AGENT)
+    pr('[LOGIN]', 'Mobile logging-in...')
+    login(browser, account['username'], account['password'], True)
+    pr('[LOGIN]', 'Mobile logged-in successfully !')
+    remainingSearchesM = getRemainingSearches(browser, True)
+    attempts = 0
+    while remainingSearchesM > 0 and attempts < 5:
+        time.sleep(5)
+        prYellow("[INFO] Mobile Attempt #" + str(attempts))
+        if remainingSearchesM > 0:
+            pr('[BING]', 'Starting Mobile Bing searches...')
+            bingSearches(browser, remainingSearchesM, True)
+            prGreen('[BING] Finished Mobile Bing searches !')
+            remainingSearchesM = getRemainingSearches(browser, True)
+            attempts = attempts + 1
+
+    prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' this run !')
+    prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
+    prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2])
+    if account['iftttAppletUrl']:
+        message = account['name'] + '\'s account completed. Today : ' + str(POINTS_COUNTER - startingPoints) + ' Total : ' + str(POINTS_COUNTER) + ' Streak : ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!')
+        sendToIFTTT(message, account['iftttAppletUrl'])
+    
 def run():
     prRed("""
     ███╗   ███╗███████╗    ███████╗ █████╗ ██████╗ ███╗   ███╗███████╗██████╗
@@ -878,63 +973,12 @@ def run():
     ██║╚██╔╝██║╚════██║    ██╔══╝  ██╔══██║██╔══██╗██║╚██╔╝██║██╔══╝  ██╔══██╗
     ██║ ╚═╝ ██║███████║    ██║     ██║  ██║██║  ██║██║ ╚═╝ ██║███████╗██║  ██║
     ╚═╝     ╚═╝╚══════╝    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝""")
-    prPurple("        by Charles Bel (@charlesbel)               version 1.1\n")
+    prPurple("        by Thomas Lepage                           version 2.0\n")
 
     random.shuffle(ACCOUNTS)
     for index, account in enumerate(ACCOUNTS, start=1):
         try:
-            prYellow('********************' + account['username'] + '********************')
-            browser = browserSetup(True, PC_USER_AGENT)
-            time.sleep(1000000)
-            pr('[LOGIN]', 'Logging-in...')
-            login(browser, account['username'], account['password'])
-            prGreen('[LOGIN] Logged-in successfully !')
-
-            # Check if there's things to do.
-            toComplete = getActivitiesToComplete(browser)
-            if toComplete:
-                startingPoints = POINTS_COUNTER
-                prGreen('[POINTS] You have ' + str(POINTS_COUNTER) + ' points on your account !')
-                browser.get('https://rewards.microsoft.com/Signin')
-                time.sleep(5)
-                pr('[DAILY SET]', 'Trying to complete the Daily Set...')
-                completeDailySet(browser)
-                prGreen('[DAILY SET] Completed the Daily Set successfully !')
-                pr('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
-                completePunchCards(browser)
-                prGreen('[PUNCH CARDS] Completed the Punch Cards successfully !')
-                pr('[MORE PROMO]', 'Trying to complete More Promotions...')
-                completeMorePromotions(browser)
-                prGreen('[MORE PROMO] Completed More Promotions successfully !')
-                remainingSearches, remainingSearchesM = getRemainingSearches(browser)
-                if remainingSearches != 0:
-                    pr('[BING]', 'Starting Desktop and Edge Bing searches...')
-                    bingSearches(browser, remainingSearches)
-                    prGreen('[BING] Finished Desktop and Edge Bing searches !')
-                browser.quit()
-
-                if remainingSearchesM != 0:
-                    browser = browserSetup(True, MOBILE_USER_AGENT)
-                    pr('[LOGIN]', 'Logging-in...')
-                    login(browser, account['username'], account['password'], True)
-                    pr('[LOGIN]', 'Logged-in successfully !')
-                    pr('[BING]', 'Starting Mobile Bing searches...')
-                    bingSearches(browser, remainingSearchesM, True)
-                    prGreen('[BING] Finished Mobile Bing searches !')
-                browser.quit()
-
-                retryIfIncompletActivities(account)
-                
-                prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' points today !')
-                prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
-                prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2])
-                if account['iftttAppletUrl']:
-                    message = account['name'] + '\'s account completed. Today : ' + str(POINTS_COUNTER - startingPoints) + ' Total : ' + str(POINTS_COUNTER) + ' Streak : ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!')
-                    sendToIFTTT(message, account['iftttAppletUrl'])
-            else:
-                prGreen('[CHECK] Everything is done for this account, skipping')
-            
-            browser.quit()
+            doAccount(account)
         except (Exception, SessionNotCreatedException) as err:
             prRed(err)
             pass
@@ -985,7 +1029,6 @@ logging.basicConfig(filename="ms-rewards.log",
 #Let us Create an object 
 logger=logging.getLogger() 
 logger.setLevel(logging.TRACE)
-
 
 schedule.every().day.at("00:00").do(run) #Start scheduling to be replaced by random ints after first run is over
 
