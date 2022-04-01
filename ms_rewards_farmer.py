@@ -561,7 +561,10 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
                 time.sleep(5)
                 browser.switch_to.window(window_name = browser.window_handles[1])
                 time.sleep(8)
-                browser.find_element(By.XPATH, '//*[@id="rqStartQuiz"]').click()
+                try:
+                    browser.find_element(By.XPATH, '//*[@id="rqStartQuiz"]').click()
+                except NoSuchElementException as err:
+                    pass
                 waitUntilVisible(browser, By.XPATH, '//*[@id="currentQuestionContainer"]/div/div[1]', 10)
                 try:
                     counter = str(browser.find_element(By.XPATH, '//*[@id="QuestionPane0"]/div[2]').get_attribute('innerHTML'))[:-1][1:]
