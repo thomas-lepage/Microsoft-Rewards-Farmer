@@ -550,16 +550,16 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
     browser.get(url)
     for child in childPromotions:
         if child['complete'] == False:
-            browser.execute_script("window.open('%s');" % child['attributes']['destination'])
-            time.sleep(5)
-            browser.switch_to.window(window_name = browser.window_handles[1])
             if child['promotionType'] == "urlreward":
+                time.sleep(5)
+                browser.find_element(By.PARTIAL_LINK_TEXT, child['attributes']['title']).click()
                 time.sleep(random.randint(13, 17))
-                browser.close()
-                time.sleep(2)
-                browser.switch_to.window(window_name = browser.window_handles[0])
+                browser.get(url)
                 time.sleep(2)
             if child['promotionType'] == "quiz":
+                browser.execute_script("window.open('%s');" % child['attributes']['destination'])
+                time.sleep(5)
+                browser.switch_to.window(window_name = browser.window_handles[1])
                 time.sleep(8)
                 browser.find_element(By.XPATH, '//*[@id="rqStartQuiz"]').click()
                 waitUntilVisible(browser, By.XPATH, '//*[@id="currentQuestionContainer"]/div/div[1]', 10)
