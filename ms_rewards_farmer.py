@@ -884,7 +884,6 @@ def getStreakData(browser):
         raise Exception('Error while getting the streak', err)
 
 def doAccount(account):
-    prYellow('********************' + account['username'] + '********************')
     browser = browserSetup(True, PC_USER_AGENT)
     pr('[LOGIN]', 'Logging-in...')
     login(browser, account['username'], account['password'])
@@ -912,7 +911,7 @@ def doAccount(account):
         if 'punchCards' in toComplete:
             pr('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
             try:
-                completePunchCards(browser)
+                #completePunchCards(browser)
                 prGreen('[PUNCH CARDS] Completed the Punch Cards successfully !')
             except (Exception, SessionNotCreatedException) as err:
                 prRed('[PUNCH CARDS] Did not complet Punch Cards !')
@@ -961,6 +960,7 @@ def doAccount(account):
             remainingSearchesM = getRemainingSearches(browser, True)
             attempts = attempts + 1
 
+    account['completed'] = True
     prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' this run !')
     prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
     prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2])
@@ -980,11 +980,16 @@ def run():
 
     random.shuffle(ACCOUNTS)
     for index, account in enumerate(ACCOUNTS, start=1):
-        try:
-            doAccount(account)
-        except (Exception, SessionNotCreatedException) as err:
-            prRed(err)
-            pass
+        account['completed'] = False
+        attempts = 1
+        prYellow('********************' + account['username'] + '********************')
+        while not account['completed'] and attempts <= 5:
+            prYellow("[INFO] Attempting account for " + str(attempts) + " time")
+            try:
+                doAccount(account)
+            except (Exception, SessionNotCreatedException) as err:
+                prRed(err)
+                pass
 
         if len(ACCOUNTS) > 1:
             if index < len(ACCOUNTS):
