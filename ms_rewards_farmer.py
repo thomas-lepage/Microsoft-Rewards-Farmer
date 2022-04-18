@@ -369,21 +369,23 @@ def completeDailySetSurvey(browser: WebDriver, cardNumber: int):
     browser.switch_to.window(window_name = browser.window_handles[0])
     time.sleep(2)
 
-def completeDailySetQuiz(browser: WebDriver, cardNumber: int):
+def completeDailySetQuiz(browser: WebDriver, cardNumber: int, progress: int):
     time.sleep(2)
     browser.find_element(By.XPATH, '//*[@id="daily-sets"]/mee-card-group[1]/div/mee-card[' + str(cardNumber) + ']/div/card-content/mee-rewards-daily-set-item-content/div/a').click()
     time.sleep(1)
     browser.switch_to.window(window_name = browser.window_handles[1])
     time.sleep(8)
-    if not waitUntilQuizLoads(browser):
-        resetTabs(browser)
-        return
-    browser.find_element(By.XPATH, '//*[@id="rqStartQuiz"]').click()
-    waitUntilVisible(browser, By.XPATH, '//*[@id="currentQuestionContainer"]/div/div[1]', 10)
-    time.sleep(3)
+    if progress == 0:
+        if not waitUntilQuizLoads(browser):
+            resetTabs(browser)
+            return
+        browser.find_element(By.XPATH, '//*[@id="rqStartQuiz"]').click()
+        waitUntilVisible(browser, By.XPATH, '//*[@id="currentQuestionContainer"]/div/div[1]', 10)
+    time.sleep(5)
     numberOfQuestions = browser.execute_script("return _w.rewardsQuizRenderInfo.maxQuestions")
+    numberOfQuestionsCompleted = int(browser.execute_script("return _w.rewardsQuizRenderInfo.currentQuestionNumber")) - 1
     numberOfOptions = browser.execute_script("return _w.rewardsQuizRenderInfo.numberOfOptions")
-    for question in range(numberOfQuestions):
+    for question in range(numberOfQuestions - numberOfQuestionsCompleted):
         if numberOfOptions == 8:
             answers = []
             for i in range(8):
@@ -454,7 +456,7 @@ def completeDailySetVariableActivity(browser: WebDriver, cardNumber: int):
     browser.switch_to.window(window_name = browser.window_handles[0])
     time.sleep(2)
 
-def completeDailySetThisOrThat(browser: WebDriver, cardNumber: int):
+def completeDailySetThisOrThat(browser: WebDriver, cardNumber: int, progress: int):
     time.sleep(2)
     waitForElement(browser, By.XPATH, '//*[@id="daily-sets"]/mee-card-group[1]/div/mee-card[' + str(cardNumber) + ']/div/card-content/mee-rewards-daily-set-item-content/div/a').click()
     time.sleep(1)
@@ -463,8 +465,9 @@ def completeDailySetThisOrThat(browser: WebDriver, cardNumber: int):
     if not waitUntilQuizLoads(browser):
         resetTabs(browser)
         return
-    browser.find_element(By.XPATH, '//*[@id="rqStartQuiz"]').click()
-    waitUntilVisible(browser, By.XPATH, '//*[@id="currentQuestionContainer"]/div/div[1]', 10)
+    if progress == 0:
+        browser.find_element(By.XPATH, '//*[@id="rqStartQuiz"]').click()
+        waitUntilVisible(browser, By.XPATH, '//*[@id="currentQuestionContainer"]/div/div[1]', 10)
     time.sleep(3)
     for question in range(10):
         answerEncodeKey = browser.execute_script("return _G.IG")
@@ -521,12 +524,12 @@ def completeDailySet(browser: WebDriver):
                     pr('[DAILY SET]', 'Completing search of card ' + str(cardNumber))
                     completeDailySetSearch(browser, cardNumber)
                 if activity['promotionType'] == "quiz":
-                    if activity['pointProgressMax'] == 50 and activity['pointProgress'] == 0:
+                    if activity['pointProgressMax'] == 50:
                         pr('[DAILY SET]', 'Completing This or That of card ' + str(cardNumber))
-                        completeDailySetThisOrThat(browser, cardNumber)
-                    elif (activity['pointProgressMax'] == 40 or activity['pointProgressMax'] == 30) and activity['pointProgress'] == 0:
+                        completeDailySetThisOrThat(browser, cardNumber, activity['pointProgress'])
+                    elif (activity['pointProgressMax'] == 40 or activity['pointProgressMax'] == 30):
                         pr('[DAILY SET]', 'Completing quiz of card ' + str(cardNumber))
-                        completeDailySetQuiz(browser, cardNumber)
+                        completeDailySetQuiz(browser, cardNumber, activity['pointProgress'])
                     elif activity['pointProgressMax'] == 10 and activity['pointProgress'] == 0:
                         searchUrl = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(activity['destinationUrl']).query)['ru'][0])
                         searchUrlQueries = urllib.parse.parse_qs(urllib.parse.urlparse(searchUrl).query)
@@ -561,11 +564,9 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
                 time.sleep(5)
                 browser.switch_to.window(window_name = browser.window_handles[1])
                 time.sleep(8)
-                try:
+                if child['pointProgress'] == 0:
                     browser.find_element(By.XPATH, '//*[@id="rqStartQuiz"]').click()
-                except NoSuchElementException as err:
-                    pass
-                waitUntilVisible(browser, By.XPATH, '//*[@id="currentQuestionContainer"]/div/div[1]', 10)
+                    waitUntilVisible(browser, By.XPATH, '//*[@id="currentQuestionContainer"]/div/div[1]', 10)
                 try:
                     counter = str(browser.find_element(By.XPATH, '//*[@id="QuestionPane0"]/div[2]').get_attribute('innerHTML'))[:-1][1:]
                     numberOfQuestions = max([int(s) for s in counter.split() if s.isdigit()])
@@ -573,7 +574,7 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
                         browser.execute_script('document.evaluate("//*[@id=\'QuestionPane' + str(question) + '\']/div[1]/div[2]/a[' + str(random.randint(1, 3)) + ']/div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.click()')
                         time.sleep(5)
                         browser.find_element(By.XPATH, '//*[@id="AnswerPane' + str(question) + '"]/div[1]/div[2]/div[4]/a/div/span/input').click()
-                        time.sleep(3)
+                        time.sleep(7)
                 except NoSuchElementException as err:
                     numberOfQuestions = browser.execute_script("return _w.rewardsQuizRenderInfo.maxQuestions")
                     numberOfOptions = browser.execute_script("return _w.rewardsQuizRenderInfo.numberOfOptions")
@@ -601,10 +602,10 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
                             time.sleep(5)
                     pass
                 time.sleep(5)
-                browser.close()
-                time.sleep(2)
-                browser.switch_to.window(window_name = browser.window_handles[0])
-                time.sleep(2)
+            browser.close()
+            time.sleep(2)
+            browser.switch_to.window(window_name = browser.window_handles[0])
+            time.sleep(2)
 
 def completePunchCards(browser: WebDriver):
     global STREAK_DATA
@@ -850,7 +851,7 @@ def getActivitiesToComplete(browser: WebDriver) -> dict:
     for promotion in punchCards:
         for childPromotion in promotion['childPromotions']:
             if childPromotion['complete'] == False and childPromotion['promotionType'] != 'appstore':
-                if childPromotion['pointProgress'] == 0 and childPromotion['pointProgressMax'] > 0:
+                if childPromotion['pointProgressMax'] > 0 and childPromotion['pointProgress'] < childPromotion['pointProgressMax']:
                     toComplete['punchCards'].append(childPromotion['offerId'] + ' Type: ' + childPromotion['promotionType'])
 
     #MOREPROMOTIONS
@@ -858,7 +859,7 @@ def getActivitiesToComplete(browser: WebDriver) -> dict:
     toComplete['morePromotions'] = []
     for promotion in morePromotions:
         if promotion['complete'] == False and promotion['promotionType'] != 'appstore' and promotion['offerId'] != 'ENCA_lifecycle_rewardsca_Got_to_Level_2' and promotion['offerId'] != 'ENCA_lifecycle_rewardsca_Onboarding_100_bonus_points':
-            if promotion['pointProgress'] == 0 and promotion['pointProgressMax'] > 0:
+            if promotion['pointProgressMax'] > 0 and promotion['pointProgress'] < promotion['pointProgressMax']:
                 if not 'ShopAndEarn' in promotion['offerId']:
                     toComplete['morePromotions'].append(promotion['offerId'] + ' Type: ' + promotion['promotionType'])
     
@@ -884,7 +885,7 @@ def getStreakData(browser):
         raise Exception('Error while getting the streak', err)
 
 def doAccount(account):
-    browser = browserSetup(True, PC_USER_AGENT)
+    browser = browserSetup(False, PC_USER_AGENT)
     pr('[LOGIN]', 'Logging-in...')
     login(browser, account['username'], account['password'])
     prGreen('[LOGIN] Logged-in successfully !')
@@ -929,7 +930,7 @@ def doAccount(account):
         if 'desktopSearch' in toComplete:
             pr('[BING]', 'Starting Desktop and Edge Bing searches...')
             try:
-                bingSearches(browser, toComplete['desktopSearch'])
+                #bingSearches(browser, toComplete['desktopSearch'])
                 prGreen('[BING] Finished Desktop and Edge Bing searches !')
             except (Exception, SessionNotCreatedException) as err:
                 prRed('[BING] Did not complet Desktop search !')
@@ -941,6 +942,7 @@ def doAccount(account):
         toComplete = getActivitiesToComplete(browser)
         browser.get('https://rewards.microsoft.com/')
         STREAK_DATA = getStreakData(browser)
+        time.sleep(30)
 
     browser.quit()
     browser = None
