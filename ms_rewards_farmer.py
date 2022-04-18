@@ -930,7 +930,7 @@ def doAccount(account):
         if 'desktopSearch' in toComplete:
             pr('[BING]', 'Starting Desktop and Edge Bing searches...')
             try:
-                #bingSearches(browser, toComplete['desktopSearch'])
+                bingSearches(browser, toComplete['desktopSearch'])
                 prGreen('[BING] Finished Desktop and Edge Bing searches !')
             except (Exception, SessionNotCreatedException) as err:
                 prRed('[BING] Did not complet Desktop search !')
