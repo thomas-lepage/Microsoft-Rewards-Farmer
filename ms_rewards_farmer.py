@@ -555,9 +555,10 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
         if child['complete'] == False:
             if child['promotionType'] == "urlreward":
                 time.sleep(5)
+                baseWindow = browser.current_window_handle
                 browser.find_element(By.PARTIAL_LINK_TEXT, child['attributes']['title']).click()
                 time.sleep(random.randint(13, 17))
-                browser.get(url)
+                browser.switch_to.window(window_name = baseWindow)
                 time.sleep(2)
             if child['promotionType'] == "quiz":
                 browser.execute_script("window.open('%s');" % child['attributes']['destination'])
@@ -885,7 +886,7 @@ def getStreakData(browser):
         raise Exception('Error while getting the streak', err)
 
 def doAccount(account):
-    browser = browserSetup(True, PC_USER_AGENT)
+    browser = browserSetup(False, PC_USER_AGENT)
     pr('[LOGIN]', 'Logging-in...')
     login(browser, account['username'], account['password'])
     prGreen('[LOGIN] Logged-in successfully !')
@@ -912,7 +913,7 @@ def doAccount(account):
         if 'punchCards' in toComplete:
             pr('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
             try:
-                #completePunchCards(browser)
+                completePunchCards(browser)
                 prGreen('[PUNCH CARDS] Completed the Punch Cards successfully !')
             except (Exception, SessionNotCreatedException) as err:
                 prRed('[PUNCH CARDS] Did not complet Punch Cards !')

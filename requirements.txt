@@ -6,4 +6,4 @@ selenium
 urllib3
 ipapi
 schedule
-logging
+simplejson
