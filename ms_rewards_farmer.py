@@ -886,7 +886,7 @@ def getStreakData(browser):
         raise Exception('Error while getting the streak', err)
 
 def doAccount(account):
-    browser = browserSetup(False, PC_USER_AGENT)
+    browser = browserSetup(True, PC_USER_AGENT)
     pr('[LOGIN]', 'Logging-in...')
     login(browser, account['username'], account['password'])
     prGreen('[LOGIN] Logged-in successfully !')
