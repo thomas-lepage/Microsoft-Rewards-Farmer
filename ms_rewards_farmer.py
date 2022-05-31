@@ -555,10 +555,9 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
         if child['complete'] == False:
             if child['promotionType'] == "urlreward":
                 time.sleep(5)
-                baseWindow = browser.current_window_handle
                 browser.find_element(By.PARTIAL_LINK_TEXT, child['attributes']['title']).click()
                 time.sleep(random.randint(13, 17))
-                browser.switch_to.window(window_name = baseWindow)
+                browser.close()
                 time.sleep(2)
             if child['promotionType'] == "quiz":
                 browser.execute_script("window.open('%s');" % child['attributes']['destination'])
@@ -603,7 +602,7 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
                             time.sleep(5)
                     pass
                 time.sleep(5)
-            browser.close()
+                browser.close()
             time.sleep(2)
             browser.switch_to.window(window_name = browser.window_handles[0])
             time.sleep(2)
@@ -616,6 +615,7 @@ def completePunchCards(browser: WebDriver):
             if punchCard['parentPromotion'] != None and punchCard['childPromotions'] != None and punchCard['parentPromotion']['complete'] == False and punchCard['parentPromotion']['pointProgressMax'] != 0 and punchCard['parentPromotion']['promotionType'] != 'appstore':
                 url = punchCard['parentPromotion']['attributes']['destination']
                 completePunchCard(browser, url, punchCard['childPromotions'])
+                time.sleep(1000000)
         except Exception as err:
             pr(err)
             resetTabs(browser)
