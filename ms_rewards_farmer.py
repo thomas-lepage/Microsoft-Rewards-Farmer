@@ -107,6 +107,11 @@ def checkBingLogin(browser: WebDriver, isMobile: bool = False):
     except:
         pass
     try:
+        script = 'document.getElementById("bnp_rich_div").style.display = "none"'
+        browser.execute_script(script)
+    except:
+        pass
+    try:
         waitForElement(browser, By.ID, 'bnp_close_link').click()
     except:
         pass
@@ -141,7 +146,7 @@ def checkBingLogin(browser: WebDriver, isMobile: bool = False):
     time.sleep(2)
     # Refresh page
     browser.get('https://bing.com/')
-    # Wait 5 seconds
+    # Wait 10 seconds
     time.sleep(10)
     #Update Counter
     try:
@@ -157,6 +162,11 @@ def checkBingLogin(browser: WebDriver, isMobile: bool = False):
                     pass
                 try:
                     script = 'document.getElementById("bnp_ttc_div").style.display = "none"'
+                    browser.execute_script(script)
+                except:
+                    pass
+                try:
+                    script = 'document.getElementById("bnp_rich_div").style.display = "none"'
                     browser.execute_script(script)
                 except:
                     pass
