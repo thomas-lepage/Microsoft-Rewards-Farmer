@@ -1,6 +1,11 @@
-[{
-    "username": "Your Email",
-    "password": "Your Password",
-    "name": "Your account name"
-    "iftttAppletUrl": "Applet url"
-}]
+{
+    "iftttAppletUrl": "Applet url",
+    "languageCode": "en",
+    "geoCode": "US",
+    "timezone": "-0300",
+    "accounts": [{
+        "username": "Your Email",
+        "password": "Your Password",
+        "name": "Your account name"
+    }]
+}
