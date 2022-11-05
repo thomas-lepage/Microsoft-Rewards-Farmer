@@ -238,16 +238,6 @@ def findBetween(s: str, first: str, last: str) -> str:
     except ValueError:
         return ""
 
-def getCCodeLangAndOffset() -> tuple:
-    #nfo = ipapi.location()
-    lang = 'en-CA'
-    geo = 'CA'
-    #if nfo['utc_offset'] == None:
-    #    tz = str(0)
-    #else:
-    tz = '-300'
-    return(lang, geo, tz)
-
 def getGoogleTrends(numberOfwords: int) -> list:
     search_terms = []
     i = 0
@@ -977,9 +967,9 @@ def doAccount(account):
     prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' this run !')
     prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
     prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2])
-    if account['iftttAppletUrl']:
+    if CONFIG['iftttAppletUrl']:
         message = account['name'] + '\'s account completed. Today : ' + str(POINTS_COUNTER - startingPoints) + ' Total : ' + str(POINTS_COUNTER) + ' Streak : ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!')
-        sendToIFTTT(message, account['iftttAppletUrl'])
+        sendToIFTTT(message, CONFIG['iftttAppletUrl'])
     
 def run():
     prRed("""
@@ -991,8 +981,8 @@ def run():
     ╚═╝     ╚═╝╚══════╝    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝""")
     prPurple("        by Thomas Lepage                           version 2.0\n")
 
-    random.shuffle(ACCOUNTS)
-    for index, account in enumerate(ACCOUNTS, start=1):
+    random.shuffle(CONFIG["accounts"])
+    for index, account in enumerate(CONFIG["accounts"], start=1):
         account['completed'] = False
         attempts = 1
         prYellow('********************' + account['username'] + '********************')
@@ -1004,8 +994,8 @@ def run():
                 prRed(err)
                 pass
 
-        if len(ACCOUNTS) > 1:
-            if index < len(ACCOUNTS):
+        if len(CONFIG["accounts"]) > 1:
+            if index < len(CONFIG["accounts"]):
                 randomTime = random.randint(1200, 5400)
                 prRed("Current time {}".format(datetime.now().strftime("%H:%M")))
                 time_str = (datetime.now() + timedelta(seconds=randomTime)).strftime("%H:%M")
@@ -1014,25 +1004,30 @@ def run():
     schedule_next_run() #set a new hour and minute for the next day
     return schedule.CancelJob #cancel current time schedule
 
-LANG, GEO, TZ = getCCodeLangAndOffset()
-
 try:
     account_path = os.path.dirname(os.path.abspath(__file__)) + '/accounts.json'
-    ACCOUNTS = json.load(open(account_path, "r"))
+    CONFIG = json.load(open(account_path, "r"))
 except FileNotFoundError:
     with open(account_path, 'w') as f:
         f.write(json.dumps([{
-            "username": "Your Email",
-            "password": "Your Password",
-            "name": "Name of the account",
-            "iftttAppletUrl": "Applet url"
+            "iftttAppletUrl": "Applet url",
+            "languageCode": "en",
+            "geoCode": "US",
+            "timezone": "-0300",
+            "accounts": [{
+                "username": "Your Email",
+                "password": "Your Password",
+                "name": "Your account name",
+            }]
         }], indent=4))
     prPurple("""
 [ACCOUNT] Accounts credential file "accounts.json" created.
 [ACCOUNT] Edit with your credentials and save, then press any key to continue...
     """)
     input()
-    ACCOUNTS = json.load(open(account_path, "r"))
+    CONFIG = json.load(open(account_path, "r"))
+
+LANG, GEO, TZ = CONFIG["languageCode"], CONFIG["geoCode"], CONFIG["timezone"]
 
 logging.TRACE = 51
 logging.addLevelName(logging.TRACE, "TRACE")
