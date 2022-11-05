@@ -24,6 +24,8 @@ MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 12; SM-A205U) AppleWebKit/537.3
 
 POINTS_COUNTER = 0
 STREAK_DATA = 0
+MAX_JOB_ATTEMPTS = 5
+MAX_ACCOUNT_ATTEMPTS = 3
 
 # Define browser setup function
 def browserSetup(headless_mode: bool = False, user_agent: str = PC_USER_AGENT) -> WebDriver:
@@ -179,7 +181,7 @@ def checkBingLogin(browser: WebDriver, isMobile: bool = False):
             time.sleep(1)
             POINTS_COUNTER = int(waitForElement(browser, By.ID, 'fly_id_rc').get_attribute('innerHTML'))
     except:
-        checkBingLogin(browser, isMobile)
+        raise ValueError('Login check failed: invalid credentials')
 
 def waitForElement(browser: WebDriver, by_: By, selector: str, time_to_wait: int = 10):
     return WebDriverWait(browser, time_to_wait).until(ec.presence_of_element_located((by_, selector)))
@@ -905,10 +907,10 @@ def doAccount(account):
     STREAK_DATA = getStreakData(browser)
 
     # Check if there's things to do.
-    attempts = 0
+    desktopJobAttempts = 1
     toComplete = getActivitiesToComplete(browser)
-    while bool(toComplete) and attempts < 5:
-        prYellow("[INFO] Desktop Attempt #" + str(attempts))
+    while bool(toComplete) and desktopJobAttempts <= MAX_JOB_ATTEMPTS:
+        prYellow("[INFO] Desktop Attempt #" + str(desktopJobAttempts))
         time.sleep(5)
 
         if 'dailySetPromotions' in toComplete:
@@ -948,7 +950,7 @@ def doAccount(account):
                 prRed(err)
                 pass
 
-        attempts = attempts + 1
+        desktopJobAttempts += 1
         prYellow('[INFO] Checking if everything in desktop is done...')
         toComplete = getActivitiesToComplete(browser)
         browser.get('https://rewards.microsoft.com/')
@@ -962,16 +964,16 @@ def doAccount(account):
     login(browser, account['username'], account['password'], True)
     pr('[LOGIN]', 'Mobile logged-in successfully !')
     remainingSearchesM = getRemainingSearches(browser, True)
-    attempts = 0
-    while remainingSearchesM > 0 and attempts < 5:
+    mobileJobAttempts = 1
+    while remainingSearchesM > 0 and mobileJobAttempts <= MAX_JOB_ATTEMPTS:
         time.sleep(5)
-        prYellow("[INFO] Mobile Attempt #" + str(attempts))
+        prYellow("[INFO] Mobile Attempt #" + str(mobileJobAttempts))
         if remainingSearchesM > 0:
             pr('[BING]', 'Starting Mobile Bing searches...')
             bingSearches(browser, remainingSearchesM, True)
             prGreen('[BING] Finished Mobile Bing searches !')
             remainingSearchesM = getRemainingSearches(browser, True)
-            attempts = attempts + 1
+            mobileJobAttempts += 1
 
     account['completed'] = True
     prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' this run !')
@@ -996,12 +998,13 @@ def run():
         account['completed'] = False
         attempts = 1
         prYellow('********************' + account['username'] + '********************')
-        while not account['completed'] and attempts <= 5:
-            prYellow("[INFO] Attempting account for " + str(attempts) + " time")
+        while not account['completed'] and attempts <= MAX_ACCOUNT_ATTEMPTS:
+            prYellow("[INFO] Attempting account for #" + str(attempts) + " time")
             try:
                 doAccount(account)
             except (Exception, SessionNotCreatedException) as err:
                 prRed(err)
+                attempts += 1
                 pass
 
         if len(ACCOUNTS) > 1:
