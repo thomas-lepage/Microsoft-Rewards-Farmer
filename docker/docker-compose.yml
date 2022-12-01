@@ -1,0 +1,12 @@
+version: '3'
+services:
+  rewards:
+    image: severinonly/ms-rewards:latest
+    privileged: true
+    network_mode: "host"
+    restart: always
+    environment:
+      SUPERVISOR_TOKEN: 'docker'
+      TZ: 'America/Montreal'
+    volumes:
+      - ../src:/app/src

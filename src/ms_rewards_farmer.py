@@ -1039,7 +1039,8 @@ def _trace(logger, message, *args, **kwargs):
 logging.Logger.trace = _trace 
 
 #now we will Create and configure logger 
-logging.basicConfig(filename="ms-rewards.log", 
+logPath = os.path.dirname(os.path.abspath(__file__)) + '/ms-rewards.log'
+logging.basicConfig(filename=logPath, 
 					format='%(asctime)s %(message)s', 
 					filemode='a+') 
 #Let us Create an object 
