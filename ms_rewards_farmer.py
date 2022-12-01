@@ -239,12 +239,8 @@ def findBetween(s: str, first: str, last: str) -> str:
         return ""
 
 def getCCodeLangAndOffset() -> tuple:
-    #nfo = ipapi.location()
     lang = 'en-CA'
     geo = 'CA'
-    #if nfo['utc_offset'] == None:
-    #    tz = str(0)
-    #else:
     tz = '-300'
     return(lang, geo, tz)
 
@@ -567,7 +563,7 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
                 time.sleep(5)
                 browser.find_element(By.PARTIAL_LINK_TEXT, child['attributes']['title']).click()
                 time.sleep(random.randint(13, 17))
-                browser.close()
+                browser.switch_to.window(window_name = browser.window_handles[0])
                 time.sleep(2)
             if child['promotionType'] == "quiz":
                 browser.execute_script("window.open('%s');" % child['attributes']['destination'])
@@ -612,9 +608,9 @@ def completePunchCard(browser: WebDriver, url: str, childPromotions: dict):
                             time.sleep(5)
                     pass
                 time.sleep(5)
-                browser.close()
+                browser.switch_to.window(window_name = browser.window_handles[0])
             time.sleep(2)
-            browser.switch_to.window(window_name = browser.window_handles[0])
+            browser.get(url)
             time.sleep(2)
 
 def completePunchCards(browser: WebDriver):
@@ -625,7 +621,6 @@ def completePunchCards(browser: WebDriver):
             if punchCard['parentPromotion'] != None and punchCard['childPromotions'] != None and punchCard['parentPromotion']['complete'] == False and punchCard['parentPromotion']['pointProgressMax'] != 0 and punchCard['parentPromotion']['promotionType'] != 'appstore':
                 url = punchCard['parentPromotion']['attributes']['destination']
                 completePunchCard(browser, url, punchCard['childPromotions'])
-                time.sleep(1000000)
         except Exception as err:
             pr(err)
             resetTabs(browser)
@@ -989,7 +984,7 @@ def run():
     ██║╚██╔╝██║╚════██║    ██╔══╝  ██╔══██║██╔══██╗██║╚██╔╝██║██╔══╝  ██╔══██╗
     ██║ ╚═╝ ██║███████║    ██║     ██║  ██║██║  ██║██║ ╚═╝ ██║███████╗██║  ██║
     ╚═╝     ╚═╝╚══════╝    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝""")
-    prPurple("        by Thomas Lepage                           version 2.0\n")
+    prPurple("        by Thomas Lepage                           version 2.1\n")
 
     random.shuffle(ACCOUNTS)
     for index, account in enumerate(ACCOUNTS, start=1):
