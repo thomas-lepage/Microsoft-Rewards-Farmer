@@ -2,6 +2,7 @@ version: '3'
 services:
   rewards:
     image: severinonly/ms-rewards:latest
+    init: true
     privileged: true
     network_mode: "host"
     restart: always
