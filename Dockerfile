@@ -1,12 +1,11 @@
-FROM alpine:latest AS base
+FROM python:3-alpine3.12
 
 WORKDIR /app
 
 ENV RUNTIME_DEPS \
         sudo \
         bash \
-        python3 \
-        py3-pip \
+        chromium \
         chromium-chromedriver \
         tzdata
 
@@ -16,6 +15,10 @@ RUN apk add --update --no-cache $RUNTIME_DEPS \
 
 COPY src/requirements.txt requirements.txt
 
-RUN pip3 install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-ENTRYPOINT ["python3", "/app/src/ms_rewards_farmer.py"]
+ENV DISPLAY=:99
+ENV IS_RUNNING_IN_DOCKER=true
+
+
+CMD ["python", "/app/src/ms_rewards_farmer.py"]

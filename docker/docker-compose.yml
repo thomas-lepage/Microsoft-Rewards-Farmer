@@ -7,7 +7,7 @@ services:
     network_mode: "host"
     restart: always
     environment:
-      SUPERVISOR_TOKEN: 'docker'
+      ENV IS_RUNNING_IN_DOCKER: 'true'
       TZ: 'America/Montreal'
     volumes:
       - ../src:/app/src

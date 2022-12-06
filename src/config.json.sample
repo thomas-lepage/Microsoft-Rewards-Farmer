@@ -1,0 +1,13 @@
+{
+    "iftttAppletUrl": "Applet url",
+    "languageCode": "en-CA",
+    "geoCode": "CA",
+    "timezone": "-0300",
+    "customEdgeUserAgent": "",
+    "customMobileUserAgent": "",
+    "accounts": [{
+        "username": "Your Email",
+        "password": "Your Password",
+        "name": "Your account name"
+    }]
+}

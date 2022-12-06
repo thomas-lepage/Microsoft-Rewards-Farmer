@@ -9,36 +9,55 @@ import os
 import sys
 import urllib.request
 import logging
+from enum import Enum
 
 from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import *
 from simplejson import JSONDecodeError
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import *
 
 # Define user-agents
-PC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.183 Safari/537.36 Edg/86.0.622.63'
-MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 12; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.50 Mobile Safari/537.36'
+DEFAULT_PC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.183 Safari/537.36 Edg/86.0.622.63'
+DEFAULT_MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 12; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.50 Mobile Safari/537.36'
 
 POINTS_COUNTER = 0
 STREAK_DATA = 0
+MAX_JOB_ATTEMPTS = 5
+MAX_ACCOUNT_ATTEMPTS = 3
+
+# use ENV IS_RUNNING_IN_DOCKER=true in the Dockerfile
+IS_RUNNING_IN_DOCKER = os.environ.get("IS_RUNNING_IN_DOCKER", "false").lower() == 'true'
+
+class LogColor(Enum):
+    RED = 1
+    GREEN = 2
+    PURPLE = 3
+    YELLOW = 4
 
 # Define browser setup function
-def browserSetup(headless_mode: bool = False, user_agent: str = PC_USER_AGENT) -> WebDriver:
+def browserSetup(user_agent: str) -> WebDriver:
     # Create Chrome browser
-    from selenium.webdriver.chrome.options import Options
     options = Options()
-    if "SUPERVISOR_TOKEN" in os.environ:
+    if IS_RUNNING_IN_DOCKER:
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
+        options.add_argument("--headless")
     options.add_argument("user-agent=" + user_agent)
     options.add_argument('lang=' + LANG.split("-")[0])
-    if headless_mode :
-        options.add_argument("--headless")
     options.add_argument('log-level=3')
-    chrome_browser_obj = webdriver.Chrome(options=options)
+    if IS_RUNNING_IN_DOCKER:
+        # Chrome Driver should be installed by the Dockerfile
+        chrome_browser_obj = webdriver.Chrome(options=options)
+    else:
+        # for Desktops it's more practical to use ChromeDriverManager
+        service = Service(ChromeDriverManager().install())
+        chrome_browser_obj = webdriver.Chrome(service=service, options=options)
     return chrome_browser_obj
 
 # Define login function
@@ -49,7 +68,7 @@ def login(browser: WebDriver, email: str, pwd: str, isMobile: bool = False):
         # Wait complete loading
         waitUntilVisible(browser, By.ID, 'loginHeader', 10)
         # Enter email
-        pr('[LOGIN]', 'Writing email...')
+        log('[LOGIN]', 'Writing email...')
         waitForElement(browser, By.NAME, "loginfmt").send_keys(email)
         # Click next
         waitForElement(browser, By.ID, 'idSIButton9').click()
@@ -59,7 +78,7 @@ def login(browser: WebDriver, email: str, pwd: str, isMobile: bool = False):
         waitUntilVisible(browser, By.ID, 'loginHeader', 10)
         # Enter password
         browser.execute_script("document.getElementById('i0118').value = '" + pwd + "';")
-        pr('[LOGIN]', 'Writing password...')
+        log('[LOGIN]', 'Writing password...')
         # Click next
         waitForElement(browser, By.ID, 'idSIButton9').click()
     except (TimeoutException) as e:
@@ -68,7 +87,7 @@ def login(browser: WebDriver, email: str, pwd: str, isMobile: bool = False):
     # Wait 5 seconds
     time.sleep(5)
     # Click Security Check
-    pr('[LOGIN]', 'Passing security checks...')
+    log('[LOGIN]', 'Passing security checks...')
     try:
         browser.find_element(By.ID, 'iLandingViewAction').click()
     except (NoSuchElementException, ElementNotInteractableException) as e:
@@ -85,9 +104,9 @@ def login(browser: WebDriver, email: str, pwd: str, isMobile: bool = False):
         time.sleep(5)
     except (NoSuchElementException, ElementNotInteractableException) as e:
         pass
-    pr('[LOGIN]', 'Logged-in !')
+    log('[LOGIN]', 'Logged-in !')
     # Check Login
-    pr('[LOGIN]', 'Ensuring login on Bing...')
+    log('[LOGIN]', 'Ensuring login on Bing...')
     checkBingLogin(browser, isMobile)
 
 def checkBingLogin(browser: WebDriver, isMobile: bool = False):
@@ -179,7 +198,7 @@ def checkBingLogin(browser: WebDriver, isMobile: bool = False):
             time.sleep(1)
             POINTS_COUNTER = int(waitForElement(browser, By.ID, 'fly_id_rc').get_attribute('innerHTML'))
     except:
-        checkBingLogin(browser, isMobile)
+        raise ValueError('Login check failed: invalid credentials')
 
 def waitForElement(browser: WebDriver, by_: By, selector: str, time_to_wait: int = 10):
     return WebDriverWait(browser, time_to_wait).until(ec.presence_of_element_located((by_, selector)))
@@ -238,12 +257,6 @@ def findBetween(s: str, first: str, last: str) -> str:
     except ValueError:
         return ""
 
-def getCCodeLangAndOffset() -> tuple:
-    lang = 'en-CA'
-    geo = 'CA'
-    tz = '-300'
-    return(lang, geo, tz)
-
 def getGoogleTrends(numberOfwords: int) -> list:
     search_terms = []
     i = 0
@@ -259,9 +272,10 @@ def getGoogleTrends(numberOfwords: int) -> list:
     del search_terms[numberOfwords:(len(search_terms)+1)]
     return search_terms
 
-def getRelatedTerms(word: str) -> list:
+def getRelatedTerms(browser: WebDriver, word: str) -> list:
     try:
-        r = requests.get('https://api.bing.com/osjson.aspx?query=' + word, headers = {'User-agent': PC_USER_AGENT})
+        current_user_agent = browser.execute_script("return navigator.userAgent")
+        r = requests.get('https://api.bing.com/osjson.aspx?query=' + word, headers = {'User-agent': current_user_agent})
         return r.json()[1]
     except:
         return []
@@ -296,10 +310,10 @@ def bingSearches(browser: WebDriver, numberOfSearches: int, isMobile: bool = Fal
     search_terms = getGoogleTrends(numberOfSearches)
     for word in search_terms :
         i += 1
-        pr('[BING]', str(i) + "/" + str(numberOfSearches))
+        log('[BING]', str(i) + "/" + str(numberOfSearches))
         points = bingSearch(browser, word, isMobile)
         if points <= POINTS_COUNTER :
-            relatedTerms = getRelatedTerms(word)
+            relatedTerms = getRelatedTerms(browser, word)
             for term in relatedTerms :
                 points = bingSearch(browser, term, isMobile)
                 if not points <= POINTS_COUNTER :
@@ -527,14 +541,14 @@ def completeDailySet(browser: WebDriver):
             if activity['complete'] == False:
                 cardNumber = int(activity['offerId'][-1:])
                 if activity['promotionType'] == "urlreward":
-                    pr('[DAILY SET]', 'Completing search of card ' + str(cardNumber))
+                    log('[DAILY SET]', 'Completing search of card ' + str(cardNumber))
                     completeDailySetSearch(browser, cardNumber)
                 if activity['promotionType'] == "quiz":
                     if activity['pointProgressMax'] == 50:
-                        pr('[DAILY SET]', 'Completing This or That of card ' + str(cardNumber))
+                        log('[DAILY SET]', 'Completing This or That of card ' + str(cardNumber))
                         completeDailySetThisOrThat(browser, cardNumber, activity['pointProgress'])
                     elif (activity['pointProgressMax'] == 40 or activity['pointProgressMax'] == 30):
-                        pr('[DAILY SET]', 'Completing quiz of card ' + str(cardNumber))
+                        log('[DAILY SET]', 'Completing quiz of card ' + str(cardNumber))
                         completeDailySetQuiz(browser, cardNumber, activity['pointProgress'])
                     elif activity['pointProgressMax'] == 10 and activity['pointProgress'] == 0:
                         searchUrl = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(activity['destinationUrl']).query)['ru'][0])
@@ -544,10 +558,10 @@ def completeDailySet(browser: WebDriver):
                             filter = filter.split(':', 1)
                             filters[filter[0]] = filter[1]
                         if "PollScenarioId" in filters:
-                            pr('[DAILY SET]', 'Completing poll of card ' + str(cardNumber))
+                            log('[DAILY SET]', 'Completing poll of card ' + str(cardNumber))
                             completeDailySetSurvey(browser, cardNumber)
                         else:
-                            pr('[DAILY SET]', 'Completing quiz of card ' + str(cardNumber))
+                            log('[DAILY SET]', 'Completing quiz of card ' + str(cardNumber))
                             completeDailySetVariableActivity(browser, cardNumber)
         except:
             resetTabs(browser)
@@ -622,7 +636,7 @@ def completePunchCards(browser: WebDriver):
                 url = punchCard['parentPromotion']['attributes']['destination']
                 completePunchCard(browser, url, punchCard['childPromotions'])
         except Exception as err:
-            pr(err)
+            log('[ERROR]', str(err))
             resetTabs(browser)
     time.sleep(2)
     browser.get('https://rewards.microsoft.com/')
@@ -804,7 +818,7 @@ def getRemainingSearches(browser: WebDriver, mobileOnly: bool = False):
 def schedule_next_run(): # set next run for random hour and minute each day
    time_str = '{:02d}:{:02d}'.format(random.randint(7, 10), random.randint(0, 59))
    schedule.clear()
-   prPurple("Next run scheduled for tomorrow, {}, at {}".format((date.today() + timedelta(days=1)).strftime("%B %d"),time_str))
+   log('[SCHEDULE]', "Next run scheduled for tomorrow, {}, at {}".format((date.today() + timedelta(days=1)).strftime("%B %d"),time_str), LogColor.PURPLE)
    time.sleep(14400) #sleep so job will not happen twice in a day
    schedule.every().day.at(time_str).do(run)
 
@@ -814,23 +828,27 @@ def sendToIFTTT(message, iftttUrl):
     req.add_header('Content-Type', 'application/json')
     with urllib.request.urlopen(req, data) as opened_req:
         result = opened_req.read().decode()
-    prGreen('[PUSH NOTIFICATIONS]' + result)
+    log('[PUSH NOTIFICATIONS]', result, LogColor.GREEN)
 
-def prRed(prt):
-    print("\033[31m{}\033[00m".format(prt))
-    logger.trace("\033[31m{}\033[00m".format(prt))
-def prGreen(prt):
-    print("\033[32m{}\033[00m".format(prt))
-    logger.trace("\033[32m{}\033[00m".format(prt))
-def prPurple(prt):
-    print("\033[35m{}\033[00m".format(prt))
-    logger.trace("\033[35m{}\033[00m".format(prt))
-def prYellow(prt):
-    print("\033[33m{}\033[00m".format(prt))
-    logger.trace("\033[33m{}\033[00m".format(prt))
-def pr(*prt: object):
-    print(' '.join(prt))
-    logger.trace(' '.join(prt))
+def log(module, text, color=None):
+    '''
+    Log text (can be multiline) under the given module.
+    E.g. log('[FOO]', 'Hello\nWorld') will log:
+    [FOO] Hello
+    [FOO] World
+    Optionally use a color (used only in console, not in the actual log file).
+    '''
+    log_lines = '\n'.join([module + ' ' + x for x in text.splitlines()])
+    logger.trace(log_lines)
+    if color is None:
+        print(log_lines)
+    else:
+        color_code = {LogColor.RED: '\033[31m', \
+            LogColor.GREEN: '\033[32m', \
+            LogColor.PURPLE: '\033[35m', \
+            LogColor.YELLOW: '\033[33m', \
+        }[color]
+        print("{0}{1}\033[00m".format(color_code, log_lines))
 
 def getActivitiesToComplete(browser: WebDriver) -> dict:
     browser.get('https://rewards.microsoft.com/')
@@ -887,64 +905,63 @@ def getStreakData(browser):
         time.sleep(8)
         return browser.find_element(By.ID, 'streak').get_attribute('aria-label')
     except (Exception, NoSuchElementException) as err:
-        prRed(err)
+        log('[ERROR]', str(err), LogColor.RED)
         raise Exception('Error while getting the streak', err)
 
-def doAccount(account):
-    browser = browserSetup(True, PC_USER_AGENT)
-    pr('[LOGIN]', 'Logging-in...')
+def doAccount(account, pc_user_agent, mobile_user_agent):
+    browser = browserSetup(pc_user_agent)
+    log('[LOGIN]', 'Logging-in...')
     login(browser, account['username'], account['password'])
-    prGreen('[LOGIN] Logged-in successfully !')
+    log('[LOGIN]', 'Logged-in successfully!', LogColor.GREEN)
     startingPoints = POINTS_COUNTER
-    prGreen('[POINTS] You have ' + str(POINTS_COUNTER) + ' points on your account !')
+    log('[POINTS]', 'You have ' + str(POINTS_COUNTER) + ' points on your account!', LogColor.GREEN)
     STREAK_DATA = getStreakData(browser)
 
     # Check if there's things to do.
-    attempts = 0
+    desktopJobAttempts = 1
     toComplete = getActivitiesToComplete(browser)
-    while bool(toComplete) and attempts < 5:
-        prYellow("[INFO] Desktop Attempt #" + str(attempts))
+    while bool(toComplete) and desktopJobAttempts <= MAX_JOB_ATTEMPTS:
+        log('[INFO]', 'Desktop Attempt #' + str(desktopJobAttempts), LogColor.YELLOW)
         time.sleep(5)
 
         if 'dailySetPromotions' in toComplete:
-            pr('[DAILY SET]', 'Trying to complete the Daily Set...')
+            log('[DAILY SET]', 'Trying to complete the Daily Set...')
             try:
                 completeDailySet(browser)
-                prGreen('[DAILY SET] Completed the Daily Set successfully !')
+                log('[DAILY SET]', 'Completed the Daily Set successfully!', LogColor.GREEN)
             except (Exception, SessionNotCreatedException) as err:
-                prRed('[DAILY SET] Did not complet Daily Set !')
-                prRed(err)
+                log('[DAILY SET]',  'Did not complet Daily Set !', LogColor.RED)
                 pass
         if 'punchCards' in toComplete:
-            pr('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
+            log('[PUNCH CARDS]', 'Trying to complete the Punch Cards...')
             try:
                 completePunchCards(browser)
-                prGreen('[PUNCH CARDS] Completed the Punch Cards successfully !')
+                log('[PUNCH CARDS]', 'Completed the Punch Cards successfully!', LogColor.GREEN)
             except (Exception, SessionNotCreatedException) as err:
-                prRed('[PUNCH CARDS] Did not complet Punch Cards !')
-                prRed(err)
+                log('[PUNCH CARDS]',  'Did not complet Punch Cards !', LogColor.RED)
+                log('[ERROR]', str(err), LogColor.RED)
                 pass
         if 'morePromotions' in toComplete:
-            pr('[MORE PROMO]', 'Trying to complete More Promotions...')
+            log('[MORE PROMO]', 'Trying to complete More Promotions...')
             try:
                 completeMorePromotions(browser)
-                prGreen('[MORE PROMO] Completed More Promotions successfully !')
+                log('[MORE PROMO]', 'Completed More Promotions successfully!', LogColor.GREEN)
             except (Exception, SessionNotCreatedException) as err:
-                prRed('[MORE PROMO] Did not complet More Promotions !')
-                prRed(err)
+                log('[MORE PROMO]', 'Did not complet More Promotions !', LogColor.RED)
+                log('[ERROR]', str(err), LogColor.RED)
                 pass
         if 'desktopSearch' in toComplete:
-            pr('[BING]', 'Starting Desktop and Edge Bing searches...')
+            log('[BING]', 'Starting Desktop and Edge Bing searches...')
             try:
                 bingSearches(browser, toComplete['desktopSearch'])
-                prGreen('[BING] Finished Desktop and Edge Bing searches !')
+                log('[BING]', 'Finished Desktop and Edge Bing searches!', LogColor.GREEN)
             except (Exception, SessionNotCreatedException) as err:
-                prRed('[BING] Did not complet Desktop search !')
-                prRed(err)
+                log('[BING]', 'Did not complet Desktop search !', LogColor.RED)
+                log('[ERROR]', str(err), LogColor.RED)
                 pass
 
-        attempts = attempts + 1
-        prYellow('[INFO] Checking if everything in desktop is done...')
+        desktopJobAttempts += 1
+        log('[INFO]', 'Checking if everything in desktop is done...', LogColor.YELLOW)
         toComplete = getActivitiesToComplete(browser)
         browser.get('https://rewards.microsoft.com/')
         STREAK_DATA = getStreakData(browser)
@@ -952,113 +969,104 @@ def doAccount(account):
 
     browser.quit()
     browser = None
-    browser = browserSetup(True, MOBILE_USER_AGENT)
-    pr('[LOGIN]', 'Mobile logging-in...')
+    browser = browserSetup(mobile_user_agent)
+    log('[LOGIN]', 'Mobile logging-in...')
     login(browser, account['username'], account['password'], True)
-    pr('[LOGIN]', 'Mobile logged-in successfully !')
+    log('[LOGIN]', 'Mobile logged-in successfully !')
     remainingSearchesM = getRemainingSearches(browser, True)
-    attempts = 0
-    while remainingSearchesM > 0 and attempts < 5:
+    mobileJobAttempts = 1
+    while remainingSearchesM > 0 and mobileJobAttempts <= MAX_JOB_ATTEMPTS:
         time.sleep(5)
-        prYellow("[INFO] Mobile Attempt #" + str(attempts))
+        log('[INFO]', 'Mobile Attempt #' + str(mobileJobAttempts), LogColor.YELLOW)
         if remainingSearchesM > 0:
-            pr('[BING]', 'Starting Mobile Bing searches...')
+            log('[BING]', 'Starting Mobile Bing searches...')
             bingSearches(browser, remainingSearchesM, True)
-            prGreen('[BING] Finished Mobile Bing searches !')
+            log('[BING]', 'Finished Mobile Bing searches!', LogColor.GREEN)
             remainingSearchesM = getRemainingSearches(browser, True)
-            attempts = attempts + 1
+            mobileJobAttempts += 1
 
     browser.quit()
     account['completed'] = True
-    prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' this run !')
-    prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
-    prGreen('[STREAK] ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2])
-    if account['iftttAppletUrl']:
+    log('[POINTS]', 'You have earned ' + str(POINTS_COUNTER - startingPoints) + ' this run!', LogColor.GREEN)
+    log('[POINTS]', 'You are now at ' + str(POINTS_COUNTER) + ' points!', LogColor.GREEN)
+    log('[STREAK]', STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2], LogColor.GREEN)
+    if CONFIG['iftttAppletUrl']:
         message = account['name'] + '\'s account completed. Today : ' + str(POINTS_COUNTER - startingPoints) + ' Total : ' + str(POINTS_COUNTER) + ' Streak : ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!')
-        sendToIFTTT(message, account['iftttAppletUrl'])
+        sendToIFTTT(message, CONFIG['iftttAppletUrl'])
     
-def run():
-    prRed("""
-    ███╗   ███╗███████╗    ███████╗ █████╗ ██████╗ ███╗   ███╗███████╗██████╗
-    ████╗ ████║██╔════╝    ██╔════╝██╔══██╗██╔══██╗████╗ ████║██╔════╝██╔══██╗
-    ██╔████╔██║███████╗    █████╗  ███████║██████╔╝██╔████╔██║█████╗  ██████╔╝
-    ██║╚██╔╝██║╚════██║    ██╔══╝  ██╔══██║██╔══██╗██║╚██╔╝██║██╔══╝  ██╔══██╗
-    ██║ ╚═╝ ██║███████║    ██║     ██║  ██║██║  ██║██║ ╚═╝ ██║███████╗██║  ██║
-    ╚═╝     ╚═╝╚══════╝    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝""")
-    prPurple("        by Thomas Lepage                           version 2.1\n")
+def run(pc_user_agent: str, mobile_user_agent: str):
+    log('[INIT]', 'MS FARMER by Thomas Lepage version 2.0', LogColor.RED)
 
-    random.shuffle(ACCOUNTS)
-    for index, account in enumerate(ACCOUNTS, start=1):
+    random.shuffle(CONFIG["accounts"])
+    for index, account in enumerate(CONFIG["accounts"], start=1):
         account['completed'] = False
         attempts = 1
-        prYellow('********************' + account['username'] + '********************')
-        while not account['completed'] and attempts <= 5:
-            prYellow("[INFO] Attempting account for " + str(attempts) + " time")
+        log('[INFO]', '********************' + account['username'] + '********************', LogColor.YELLOW)
+        while not account['completed'] and attempts <= MAX_ACCOUNT_ATTEMPTS:
+            log('[INFO]', "Attempting account for #" + str(attempts) + " time", LogColor.YELLOW)
             try:
-                doAccount(account)
+                doAccount(account, pc_user_agent, mobile_user_agent)
             except (Exception, SessionNotCreatedException) as err:
-                prRed(err)
+                log('[ERROR]', str(err), LogColor.RED)
+                attempts += 1
                 pass
 
-        if len(ACCOUNTS) > 1:
-            if index < len(ACCOUNTS):
+        if len(CONFIG["accounts"]) > 1:
+            if index < len(CONFIG["accounts"]):
                 randomTime = random.randint(1200, 5400)
-                prRed("Current time {}".format(datetime.now().strftime("%H:%M")))
+                log('[SCHEDULE]', "Current time {}".format(datetime.now().strftime("%H:%M")), LogColor.RED)
                 time_str = (datetime.now() + timedelta(seconds=randomTime)).strftime("%H:%M")
-                prRed("Next account run at {}".format(time_str))
+                log('[SCHEDULE]', "Next account run at {}".format(time_str), LogColor.RED)
                 time.sleep(randomTime)
     schedule_next_run() #set a new hour and minute for the next day
     return schedule.CancelJob #cancel current time schedule
 
-LANG, GEO, TZ = getCCodeLangAndOffset()
+if __name__ == '__main__':
+    logging.TRACE = 51
+    logging.addLevelName(logging.TRACE, "TRACE")
 
-try:
-    account_path = os.path.dirname(os.path.abspath(__file__)) + '/accounts.json'
-    ACCOUNTS = json.load(open(account_path, "r"))
-except FileNotFoundError:
-    with open(account_path, 'w') as f:
-        f.write(json.dumps([{
-            "username": "Your Email",
-            "password": "Your Password",
-            "name": "Name of the account",
-            "iftttAppletUrl": "Applet url"
-        }], indent=4))
-    prPurple("""
-[ACCOUNT] Accounts credential file "accounts.json" created.
-[ACCOUNT] Edit with your credentials and save, then press any key to continue...
-    """)
-    input()
-    ACCOUNTS = json.load(open(account_path, "r"))
+    def _trace(logger, message, *args, **kwargs):
+        if logger.isEnabledFor(logging.TRACE):
+            logger._log(logging.TRACE, message, args, **kwargs)
 
-logging.TRACE = 51
-logging.addLevelName(logging.TRACE, "TRACE")
+    logging.Logger.trace = _trace 
 
-def _trace(logger, message, *args, **kwargs):
-    if logger.isEnabledFor(logging.TRACE):
-        logger._log(logging.TRACE, message, args, **kwargs)
+    #now we will Create and configure logger 
+    logPath = os.path.dirname(os.path.abspath(__file__)) + '/ms-rewards.log'
+    logging.basicConfig(filename=logPath, 
+                        format='%(asctime)s %(message)s', 
+                        filemode='a+') 
+    #Let us Create an object 
+    logger=logging.getLogger() 
+    logger.setLevel(logging.TRACE)
 
-logging.Logger.trace = _trace 
-
-#now we will Create and configure logger 
-logPath = os.path.dirname(os.path.abspath(__file__)) + '/ms-rewards.log'
-logging.basicConfig(filename=logPath, 
-					format='%(asctime)s %(message)s', 
-					filemode='a+') 
-#Let us Create an object 
-logger=logging.getLogger() 
-logger.setLevel(logging.TRACE)
-
-schedule.every().day.at("00:00").do(run) #Start scheduling to be replaced by random ints after first run is over
-
-try:
-    run() #Run for First time and set schedule for the next run
-
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
-except KeyboardInterrupt:
-    pr('Interrupted')
     try:
-        sys.exit(0)
-    except SystemExit:
-        os._exit(0)
+        config_path = os.path.dirname(os.path.abspath(__file__)) + '/config.json'
+        CONFIG = json.load(open(config_path, "r"))
+    except FileNotFoundError:
+        log("[ACCOUNT]", 'Create "config.json" from "config.json.sample" and re-run the script.', LogColor.PURPLE)
+        sys.exit(1)
+
+    LANG, GEO, TZ = CONFIG["languageCode"], CONFIG["geoCode"], CONFIG["timezone"]
+
+    PC_USER_AGENT = CONFIG["customEdgeUserAgent"]
+    if not PC_USER_AGENT:
+        PC_USER_AGENT = DEFAULT_PC_USER_AGENT
+    MOBILE_USER_AGENT = CONFIG["customMobileUserAgent"]
+    if not MOBILE_USER_AGENT:
+        MOBILE_USER_AGENT = DEFAULT_MOBILE_USER_AGENT
+
+    schedule.every().day.at("00:00").do(run) #Start scheduling to be replaced by random ints after first run is over
+
+    try:
+        run(DEFAULT_PC_USER_AGENT, MOBILE_USER_AGENT) #Run for First time and set schedule for the next run
+
+        while True:
+            schedule.run_pending()
+            time.sleep(60)
+    except KeyboardInterrupt:
+        log('[INFO]', 'Interrupted')
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
