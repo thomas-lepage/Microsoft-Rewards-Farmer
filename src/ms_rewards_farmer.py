@@ -995,7 +995,7 @@ def doAccount(account, pc_user_agent, mobile_user_agent):
         sendToIFTTT(message, CONFIG['iftttAppletUrl'])
     
 def run(pc_user_agent: str, mobile_user_agent: str):
-    log('[INIT]', 'MS FARMER by Thomas Lepage version 2.0', LogColor.RED)
+    log('[INIT]', 'MS FARMER by Thomas Lepage version 2.1.3', LogColor.RED)
 
     random.shuffle(CONFIG["accounts"])
     for index, account in enumerate(CONFIG["accounts"], start=1):

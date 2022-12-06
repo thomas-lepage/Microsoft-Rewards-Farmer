@@ -21,4 +21,4 @@ ENV DISPLAY=:99
 ENV IS_RUNNING_IN_DOCKER=true
 
 
-CMD ["python", "/app/src/ms_rewards_farmer.py"]
+CMD ["python", "-u", "/app/src/ms_rewards_farmer.py"]
