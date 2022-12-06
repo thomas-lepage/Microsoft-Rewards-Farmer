@@ -968,6 +968,7 @@ def doAccount(account):
             remainingSearchesM = getRemainingSearches(browser, True)
             attempts = attempts + 1
 
+    browser.quit()
     account['completed'] = True
     prGreen('[POINTS] You have earned ' + str(POINTS_COUNTER - startingPoints) + ' this run !')
     prGreen('[POINTS] You are now at ' + str(POINTS_COUNTER) + ' points !')
