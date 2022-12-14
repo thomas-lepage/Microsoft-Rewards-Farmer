@@ -815,12 +815,12 @@ def getRemainingSearches(browser: WebDriver, mobileOnly: bool = False):
         return remainingMobile;
     return remainingDesktop, remainingMobile
 
-def schedule_next_run(): # set next run for random hour and minute each day
+def schedule_next_run(pc_user_agent: str, mobile_user_agent: str): # set next run for random hour and minute each day
    time_str = '{:02d}:{:02d}'.format(random.randint(7, 10), random.randint(0, 59))
    schedule.clear()
    log('[SCHEDULE]', "Next run scheduled for tomorrow, {}, at {}".format((date.today() + timedelta(days=1)).strftime("%B %d"),time_str), LogColor.PURPLE)
    time.sleep(14400) #sleep so job will not happen twice in a day
-   schedule.every().day.at(time_str).do(run)
+   schedule.every().day.at(time_str).do(run, pc_user_agent=pc_user_agent, mobile_user_agent=mobile_user_agent)
 
 def sendToIFTTT(message, iftttUrl):
     data = json.dumps({"value1": message}).encode()
@@ -995,7 +995,7 @@ def doAccount(account, pc_user_agent, mobile_user_agent):
         sendToIFTTT(message, CONFIG['iftttAppletUrl'])
     
 def run(pc_user_agent: str, mobile_user_agent: str):
-    log('[INIT]', 'MS FARMER by Thomas Lepage version 2.1.3', LogColor.RED)
+    log('[INIT]', 'MS FARMER by Thomas Lepage version 2.1.4', LogColor.RED)
 
     random.shuffle(CONFIG["accounts"])
     for index, account in enumerate(CONFIG["accounts"], start=1):
@@ -1018,7 +1018,7 @@ def run(pc_user_agent: str, mobile_user_agent: str):
                 time_str = (datetime.now() + timedelta(seconds=randomTime)).strftime("%H:%M")
                 log('[SCHEDULE]', "Next account run at {}".format(time_str), LogColor.RED)
                 time.sleep(randomTime)
-    schedule_next_run() #set a new hour and minute for the next day
+    schedule_next_run(pc_user_agent, mobile_user_agent) #set a new hour and minute for the next day
     return schedule.CancelJob #cancel current time schedule
 
 if __name__ == '__main__':
@@ -1047,7 +1047,7 @@ if __name__ == '__main__':
         log("[ACCOUNT]", 'Create "config.json" from "config.json.sample" and re-run the script.', LogColor.PURPLE)
         sys.exit(1)
 
-    LANG, GEO, TZ = CONFIG["languageCode"], CONFIG["geoCode"], CONFIG["timezone"]
+    LANG, GEO = CONFIG["languageCode"], CONFIG["geoCode"]
 
     PC_USER_AGENT = CONFIG["customEdgeUserAgent"]
     if not PC_USER_AGENT:
@@ -1059,7 +1059,7 @@ if __name__ == '__main__':
     schedule.every().day.at("00:00").do(run) #Start scheduling to be replaced by random ints after first run is over
 
     try:
-        run(DEFAULT_PC_USER_AGENT, MOBILE_USER_AGENT) #Run for First time and set schedule for the next run
+        run(PC_USER_AGENT, MOBILE_USER_AGENT) #Run for First time and set schedule for the next run
 
         while True:
             schedule.run_pending()

@@ -1,11 +1,12 @@
-FROM python:3-alpine3.12
+FROM alpine:latest AS base
 
 WORKDIR /app
 
 ENV RUNTIME_DEPS \
         sudo \
         bash \
-        chromium \
+        python3 \
+        py3-pip \
         chromium-chromedriver \
         tzdata
 
@@ -15,7 +16,7 @@ RUN apk add --update --no-cache $RUNTIME_DEPS \
 
 COPY src/requirements.txt requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 ENV DISPLAY=:99
 ENV IS_RUNNING_IN_DOCKER=true
