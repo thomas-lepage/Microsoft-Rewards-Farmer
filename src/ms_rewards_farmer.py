@@ -23,8 +23,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import *
 
 # Define user-agents
-DEFAULT_PC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.183 Safari/537.36 Edg/86.0.622.63'
-DEFAULT_MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 12; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.50 Mobile Safari/537.36'
+DEFAULT_PC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.44'
+DEFAULT_MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 12; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Mobile Safari/537.36'
 
 POINTS_COUNTER = 0
 STREAK_DATA = 0
@@ -639,7 +639,7 @@ def completePunchCards(browser: WebDriver):
             log('[ERROR]', str(err))
             resetTabs(browser)
     time.sleep(2)
-    browser.get('https://rewards.microsoft.com/')
+    browser.get('https://rewards.bing.com/')
     time.sleep(2)
 
 def completeMorePromotionSearch(browser: WebDriver, cardNumber: int):
@@ -783,7 +783,7 @@ def completeMorePromotions(browser: WebDriver):
             resetTabs(browser)
 
 def getRemainingSearches(browser: WebDriver, mobileOnly: bool = False):
-    browser.get('https://rewards.microsoft.com/')
+    browser.get('https://rewards.bing.com/')
     time.sleep(5)
 
     dashboard = getDashboardData(browser)
@@ -851,7 +851,7 @@ def log(module, text, color=None):
         print("{0}{1}\033[00m".format(color_code, log_lines))
 
 def getActivitiesToComplete(browser: WebDriver) -> dict:
-    browser.get('https://rewards.microsoft.com/')
+    browser.get('https://rewards.bing.com/')
     time.sleep(10)
 
     dashboard = getDashboardData(browser)
@@ -900,9 +900,9 @@ def getActivitiesToComplete(browser: WebDriver) -> dict:
     return toComplete
 
 def getStreakData(browser):
-    browser.get('https://rewards.microsoft.com/')
+    browser.get('https://rewards.bing.com/')
     try:
-        time.sleep(8)
+        time.sleep(16)
         return browser.find_element(By.ID, 'streak').get_attribute('aria-label')
     except (Exception, NoSuchElementException) as err:
         log('[ERROR]', str(err), LogColor.RED)
@@ -963,7 +963,7 @@ def doAccount(account, pc_user_agent, mobile_user_agent):
         desktopJobAttempts += 1
         log('[INFO]', 'Checking if everything in desktop is done...', LogColor.YELLOW)
         toComplete = getActivitiesToComplete(browser)
-        browser.get('https://rewards.microsoft.com/')
+        browser.get('https://rewards.bing.com/')
         STREAK_DATA = getStreakData(browser)
         time.sleep(30)
 
@@ -995,7 +995,7 @@ def doAccount(account, pc_user_agent, mobile_user_agent):
         sendToIFTTT(message, CONFIG['iftttAppletUrl'])
     
 def run(pc_user_agent: str, mobile_user_agent: str):
-    log('[INIT]', 'MS FARMER by Thomas Lepage version 2.1.4', LogColor.RED)
+    log('[INIT]', 'MS FARMER by Thomas Lepage version 2.1.5', LogColor.RED)
 
     random.shuffle(CONFIG["accounts"])
     for index, account in enumerate(CONFIG["accounts"], start=1):
