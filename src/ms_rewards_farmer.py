@@ -30,6 +30,7 @@ POINTS_COUNTER = 0
 STREAK_DATA = 0
 MAX_JOB_ATTEMPTS = 5
 MAX_ACCOUNT_ATTEMPTS = 3
+MAX_INTERNET_ATTEMPTS = 10
 
 # use ENV IS_RUNNING_IN_DOCKER=true in the Dockerfile
 IS_RUNNING_IN_DOCKER = os.environ.get("IS_RUNNING_IN_DOCKER", "false").lower() == 'true'
@@ -995,32 +996,51 @@ def doAccount(account, pc_user_agent, mobile_user_agent):
         sendToIFTTT(message, CONFIG['iftttAppletUrl'])
     
 def run(pc_user_agent: str, mobile_user_agent: str):
-    log('[INIT]', 'MS FARMER by Thomas Lepage version 2.1.5', LogColor.RED)
+    log('[INIT]', 'MS FARMER by Thomas Lepage version 2.1.6', LogColor.RED)
 
-    random.shuffle(CONFIG["accounts"])
-    for index, account in enumerate(CONFIG["accounts"], start=1):
-        account['completed'] = False
-        attempts = 1
-        log('[INFO]', '********************' + account['username'] + '********************', LogColor.YELLOW)
-        while not account['completed'] and attempts <= MAX_ACCOUNT_ATTEMPTS:
-            log('[INFO]', "Attempting account for #" + str(attempts) + " time", LogColor.YELLOW)
-            try:
-                doAccount(account, pc_user_agent, mobile_user_agent)
-            except (Exception, SessionNotCreatedException) as err:
-                log('[ERROR]', str(err), LogColor.RED)
-                attempts += 1
-                pass
+    log('[INIT]', 'Checking internet connection...', LogColor.RED)
+    internetTry = 1
+    internetOK = False
+    while internetTry <= MAX_INTERNET_ATTEMPTS:
+        log('[INIT]', 'Trying internet attemps: ' + str(internetTry), LogColor.RED)
+        internetOK = internetAccess()
+        if (internetOK):
+            break
+        internetTry += 1
+        time.sleep(5*internetTry)
 
-        if len(CONFIG["accounts"]) > 1:
-            if index < len(CONFIG["accounts"]):
-                randomTime = random.randint(1200, 5400)
-                log('[SCHEDULE]', "Current time {}".format(datetime.now().strftime("%H:%M")), LogColor.RED)
-                time_str = (datetime.now() + timedelta(seconds=randomTime)).strftime("%H:%M")
-                log('[SCHEDULE]', "Next account run at {}".format(time_str), LogColor.RED)
-                time.sleep(randomTime)
+    if (internetOK):
+        random.shuffle(CONFIG["accounts"])
+        for index, account in enumerate(CONFIG["accounts"], start=1):
+            account['completed'] = False
+            attempts = 1
+            log('[INFO]', '********************' + account['username'] + '********************', LogColor.YELLOW)
+            while not account['completed'] and attempts <= MAX_ACCOUNT_ATTEMPTS:
+                log('[INFO]', "Attempting account for #" + str(attempts) + " time", LogColor.YELLOW)
+                try:
+                    doAccount(account, pc_user_agent, mobile_user_agent)
+                except (Exception, SessionNotCreatedException) as err:
+                    log('[ERROR]', str(err), LogColor.RED)
+                    attempts += 1
+                    pass
+
+            if len(CONFIG["accounts"]) > 1:
+                if index < len(CONFIG["accounts"]):
+                    randomTime = random.randint(1200, 5400)
+                    log('[SCHEDULE]', "Current time {}".format(datetime.now().strftime("%H:%M")), LogColor.RED)
+                    time_str = (datetime.now() + timedelta(seconds=randomTime)).strftime("%H:%M")
+                    log('[SCHEDULE]', "Next account run at {}".format(time_str), LogColor.RED)
+                    time.sleep(randomTime)
     schedule_next_run(pc_user_agent, mobile_user_agent) #set a new hour and minute for the next day
     return schedule.CancelJob #cancel current time schedule
 
+def internetAccess(host="https://google.com"):
+    try:
+        urllib.request.urlopen(host)
+        return True
+    except:
+        return False
+    
 if __name__ == '__main__':
     logging.TRACE = 51
     logging.addLevelName(logging.TRACE, "TRACE")
