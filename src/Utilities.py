@@ -61,7 +61,7 @@ class Utilities:
             time.sleep(16)
             return browser.find_element(By.ID, 'streak').get_attribute('aria-label')
         except (Exception, NoSuchElementException) as err:
-            logger.log('[ERROR]', str(err), LogColor.RED)
+            settings.logger.log('[ERROR]', str(err), LogColor.RED)
             raise Exception('Error while getting the streak', err)
         
     def getActivitiesToComplete(browser: WebDriver) -> dict:
