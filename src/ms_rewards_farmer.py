@@ -256,9 +256,8 @@ def doAccount(account, pc_user_agent, mobile_user_agent):
     settings.logger.log('[POINTS]', 'You have earned ' + str(settings.pointsCounter - startingPoints) + ' this run!', LogColor.GREEN)
     settings.logger.log('[POINTS]', 'You are now at ' + str(settings.pointsCounter) + ' points!', LogColor.GREEN)
     settings.logger.log('[STREAK]', STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2], LogColor.GREEN)
-    message = account['name'] + '\'s account completed. Today : ' + str(settings.pointsCounter - startingPoints) + ' Total : ' + str(settings.pointsCounter) + ' Streak : ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!')
     for h in hooks.account_completed:
-        h(message, settings)  
+        h(account, startingPoints, STREAK_DATA, settings)  
 
 def run(pc_user_agent: str, mobile_user_agent: str):
     settings.logger.log('[INIT]', 'MS FARMER by Thomas Lepage version 3.1.0', LogColor.RED)
