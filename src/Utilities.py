@@ -119,14 +119,6 @@ class Utilities:
             return True
         except:
             return False
-        
-    def sendToIFTTT(message, iftttUrl):
-        data = json.dumps({"value1": message}).encode()
-        req = urllib.request.Request(iftttUrl)
-        req.add_header('Content-Type', 'application/json')
-        with urllib.request.urlopen(req, data) as opened_req:
-            result = opened_req.read().decode()
-        settings.logger.log('[PUSH NOTIFICATIONS]', result, LogColor.GREEN)
     
     def waitForElement(browser: WebDriver, by_: By, selector: str, time_to_wait: int = 10):
         return WebDriverWait(browser, time_to_wait).until(ec.presence_of_element_located((by_, selector)))

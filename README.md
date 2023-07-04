@@ -12,7 +12,7 @@
 ██║╚██╔╝██║╚════██║    ██╔══╝  ██╔══██║██╔══██╗██║╚██╔╝██║██╔══╝  ██╔══██╗
 ██║ ╚═╝ ██║███████║    ██║     ██║  ██║██║  ██║██║ ╚═╝ ██║███████╗██║  ██║
 ╚═╝     ╚═╝╚══════╝    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝
-       by Charles Bel (@charlesbel)          version 1.1
+       by Thomas Lepage (@charlesbel)          version 3.1.0
 </pre>
 
 <p align="center">
@@ -60,5 +60,22 @@
   <li>Complete automatically the others promotions</li>
   <li>Headless Mode</li>
   <li>Multi-Account Management</li>
+</ul>
+</p>
+
+<h2 align="center">Hooks</h2>
+<p align="center">
+You can add hooks to do certain action when an account is completed with successor there is an error with an account. More hooks will come!
+An example is set in the file hooks/hook.py. You can add as much files as you want in this folder to add all the function you want.
+The example send an IFTTT notification.
+</p>
+<p align="center">
+If you want to add your custom function on a hook, simply edit the hooks/hook.py file (but maybe overwritten when pulling updates), add a new file with your custom code. If you are using the docker-compose, the folder hooks is mounted as a volume so just put your files in the volume and they will be loaded.
+</p>
+<p align="center">
+Available hooks
+<ul>
+  <li>account_completed</li>
+  <li>account_error</li>
 </ul>
 </p>

@@ -11,3 +11,4 @@ services:
       TZ: 'America/Montreal'
     volumes:
       - ../src:/app/src
+      - ../hooks:/app/src/hooks

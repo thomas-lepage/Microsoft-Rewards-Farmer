@@ -17,6 +17,8 @@ from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import *
 
+from HookLoader import *
+
 # Define user-agents
 DEFAULT_PC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.44'
 DEFAULT_MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 12; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Mobile Safari/537.36'
@@ -173,7 +175,7 @@ def schedule_next_run(pc_user_agent: str, mobile_user_agent: str): # set next ru
    schedule.every().day.at(time_str).do(run, pc_user_agent=pc_user_agent, mobile_user_agent=mobile_user_agent)
 
 def doAccount(account, pc_user_agent, mobile_user_agent):
-    browser = Utilities.browserSetup(pc_user_agent, CONFIG['languageCode'])
+    browser = Utilities.browserSetup(pc_user_agent, settings.config['languageCode'])
     settings.logger.log('[LOGIN]', 'Logging-in...')
     login(browser, account['username'], account['password'])
     settings.logger.log('[LOGIN]', 'Logged-in successfully!', LogColor.GREEN)
@@ -217,7 +219,7 @@ def doAccount(account, pc_user_agent, mobile_user_agent):
         if 'desktopSearch' in toComplete:
             settings.logger.log('[BING]', 'Starting Desktop and Edge Bing searches...')
             try:
-                Searches.bingSearches(browser, toComplete['desktopSearch'], CONFIG)
+                Searches.bingSearches(browser, toComplete['desktopSearch'], settings.config)
                 settings.logger.log('[BING]', 'Finished Desktop and Edge Bing searches!', LogColor.GREEN)
             except (Exception, SessionNotCreatedException) as err:
                 settings.logger.log('[BING]', 'Did not complet Desktop search !', LogColor.RED)
@@ -233,7 +235,7 @@ def doAccount(account, pc_user_agent, mobile_user_agent):
 
     browser.quit()
     browser = None
-    browser = Utilities.browserSetup(mobile_user_agent, CONFIG['languageCode'])
+    browser = Utilities.browserSetup(mobile_user_agent, settings.config['languageCode'])
     settings.logger.log('[LOGIN]', 'Mobile logging-in...')
     login(browser, account['username'], account['password'], True)
     settings.logger.log('[LOGIN]', 'Mobile logged-in successfully !')
@@ -244,7 +246,7 @@ def doAccount(account, pc_user_agent, mobile_user_agent):
         settings.logger.log('[INFO]', 'Mobile Attempt #' + str(mobileJobAttempts), LogColor.YELLOW)
         if remainingSearchesM > 0:
             settings.logger.log('[BING]', 'Starting Mobile Bing searches...')
-            Searches.bingSearches(browser, remainingSearchesM, CONFIG, True)
+            Searches.bingSearches(browser, remainingSearchesM, settings.config, True)
             settings.logger.log('[BING]', 'Finished Mobile Bing searches!', LogColor.GREEN)
             remainingSearchesM = Utilities.getRemainingSearches(browser, True)
             mobileJobAttempts += 1
@@ -254,12 +256,12 @@ def doAccount(account, pc_user_agent, mobile_user_agent):
     settings.logger.log('[POINTS]', 'You have earned ' + str(settings.pointsCounter - startingPoints) + ' this run!', LogColor.GREEN)
     settings.logger.log('[POINTS]', 'You are now at ' + str(settings.pointsCounter) + ' points!', LogColor.GREEN)
     settings.logger.log('[STREAK]', STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!') + STREAK_DATA.split(',')[2], LogColor.GREEN)
-    if CONFIG['iftttAppletUrl']:
-        message = account['name'] + '\'s account completed. Today : ' + str(settings.pointsCounter - startingPoints) + ' Total : ' + str(settings.pointsCounter) + ' Streak : ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!')
-        Utilities.sendToIFTTT(message, CONFIG['iftttAppletUrl'])
-    
+    message = account['name'] + '\'s account completed. Today : ' + str(settings.pointsCounter - startingPoints) + ' Total : ' + str(settings.pointsCounter) + ' Streak : ' + STREAK_DATA.split(',')[0] + (' day.' if STREAK_DATA.split(',')[0] == '1' else ' days!')
+    for h in hooks.account_completed:
+        h(message, settings)  
+
 def run(pc_user_agent: str, mobile_user_agent: str):
-    settings.logger.log('[INIT]', 'MS FARMER by Thomas Lepage version 3.0.0', LogColor.RED)
+    settings.logger.log('[INIT]', 'MS FARMER by Thomas Lepage version 3.1.0', LogColor.RED)
 
     settings.logger.log('[INIT]', 'Checking internet connection...', LogColor.RED)
     internetTry = 1
@@ -273,8 +275,8 @@ def run(pc_user_agent: str, mobile_user_agent: str):
         time.sleep(5*internetTry)
 
     if (internetOK):
-        random.shuffle(CONFIG["accounts"])
-        for index, account in enumerate(CONFIG["accounts"], start=1):
+        random.shuffle(settings.config["accounts"])
+        for index, account in enumerate(settings.config["accounts"], start=1):
             account['completed'] = False
             attempts = 1
             settings.logger.log('[INFO]', '********************' + account['username'] + '********************', LogColor.YELLOW)
@@ -283,12 +285,14 @@ def run(pc_user_agent: str, mobile_user_agent: str):
                 try:
                     doAccount(account, pc_user_agent, mobile_user_agent)
                 except (Exception, SessionNotCreatedException) as err:
+                    for h in hooks.account_error:
+                        h(account, err, settings)  
                     settings.logger.log('[ERROR]', str(err), LogColor.RED)
                     attempts += 1
                     pass
 
-            if len(CONFIG["accounts"]) > 1:
-                if index < len(CONFIG["accounts"]):
+            if len(settings.config["accounts"]) > 1:
+                if index < len(settings.config["accounts"]):
                     randomTime = random.randint(1200, 5400)
                     settings.logger.log('[SCHEDULE]', "Current time {}".format(datetime.now().strftime("%H:%M")), LogColor.RED)
                     time_str = (datetime.now() + timedelta(seconds=randomTime)).strftime("%H:%M")
@@ -298,18 +302,19 @@ def run(pc_user_agent: str, mobile_user_agent: str):
     return schedule.CancelJob #cancel current time schedule
 
 if __name__ == '__main__':
+    hooks = discover_hooks(paths)
     settings.initialize()
     try:
         config_path = os.path.dirname(os.path.abspath(__file__)) + '/config.json'
-        CONFIG = json.load(open(config_path, "r"))
+        settings.config = json.load(open(config_path, "r"))
     except FileNotFoundError:
         settings.logger.log("[ACCOUNT]", 'Create "config.json" from "config.json.sample" and re-run the script.', LogColor.PURPLE)
         sys.exit(1)
 
-    PC_USER_AGENT = CONFIG["customEdgeUserAgent"]
+    PC_USER_AGENT = settings.config["customEdgeUserAgent"]
     if not PC_USER_AGENT:
         PC_USER_AGENT = DEFAULT_PC_USER_AGENT
-    MOBILE_USER_AGENT = CONFIG["customMobileUserAgent"]
+    MOBILE_USER_AGENT = settings.config["customMobileUserAgent"]
     if not MOBILE_USER_AGENT:
         MOBILE_USER_AGENT = DEFAULT_MOBILE_USER_AGENT
 
